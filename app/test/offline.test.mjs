@@ -1,0 +1,21 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+test('GitHub game works offline through old admin bookmarks and never reports player data',()=>{
+  const html=readFileSync('src/game.html','utf8'),elements=new Map(),tools=new Map(),events={},urls=[];
+  const storage=new Map([['shenyinHero','caier'],['holyWingBest','8'],['shenyinLongBest','4']]);
+  const ctx=new Proxy({},{get:(_,k)=>k.includes('Gradient')?()=>({addColorStop(){}}):()=>{},set:()=>true});
+  const el=id=>{if(!elements.has(id))elements.set(id,{dataset:{},listeners:{},hidden:false,focus(){},classList:{add(){},remove(){}},getContext:()=>ctx,setAttribute(){},addEventListener:(type,fn)=>{}});return elements.get(id)};
+  const cards=['long','caier'].map(id=>Object.assign(el('card-'+id),{dataset:{hero:id}}));
+  const forbidden=()=>assert.fail('Standalone game attempted network access or telemetry polling');
+  const sandbox={document:{getElementById:el,querySelectorAll:()=>cards,body:{dataset:{}},addEventListener:(type,fn)=>events[type]=fn,modelContext:{registerTool:t=>tools.set(t.name,t)}},window:{location:{origin:'https://chenfenghrf.github.io',pathname:'/holy-wing-trial/',search:'?token=old-private-key&view=game',hash:'#play',replace:forbidden},history:{replaceState:(_,__,url)=>urls.push(url)},fetch:forbidden,setInterval:forbidden,navigator:{sendBeacon:forbidden},addEventListener:(type,fn)=>events[type]=fn},fetch:forbidden,setInterval:forbidden,setTimeout:()=>0,requestAnimationFrame(){},performance:{now:()=>0},URLSearchParams,AbortController,localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)}};
+  vm.runInNewContext(html.match(/<script>([\s\S]*?)<\/script>/)[1],sandbox);
+  assert.deepEqual(urls,['/holy-wing-trial/?view=game#play']);assert.equal(tools.size,7);
+  assert.equal(tools.get('get_trial_state').execute({}).character,'圣采儿');
+  tools.get('start_trial').execute({});tools.get('toggle_trial_pause').execute({});tools.get('return_to_character_selection').execute({});
+  tools.get('select_trial_hero').execute({hero:'long'});tools.get('start_trial').execute({});
+  for(const event of ['pageshow','visibilitychange','pagehide'])events[event]?.();
+  assert.equal(storage.get('holyWingBest'),'8');assert.equal(storage.get('shenyinLongBest'),'4');
+  assert.ok(!html.includes('chatgpt.site'));assert.ok(!html.includes('id="adminLink"'));assert.ok(!html.includes('id="playerName"'));
+});

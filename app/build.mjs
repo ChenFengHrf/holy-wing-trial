@@ -1,10 +1,5 @@
 import { readFileSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
-import { createHash } from 'node:crypto';
-const html=readFileSync('src/game.html','utf8');
-const gameScript=html.split('<script>')[1].split('</script>')[0];
-const data={GAME:html,ADMIN:readFileSync('src/admin.html','utf8'),ADMIN_JS:readFileSync('src/admin.js','utf8'),GAME_HASH:createHash('sha256').update(gameScript).digest('base64')};
-const prefix=Object.entries(data).map(([k,v])=>`const ${k}=${JSON.stringify(v)};`).join('\n');
 rmSync('dist',{recursive:true,force:true});
 mkdirSync('dist/server',{recursive:true});
-writeFileSync('dist/server/index.js',prefix+'\n'+readFileSync('src/worker.mjs','utf8'));
-console.log('Built game, protected dashboard and server routes.');
+writeFileSync('dist/server/index.js',readFileSync('src/worker.mjs','utf8'));
+console.log('Built retired Site response; game remains on GitHub Pages.');

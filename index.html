@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f5d582">
   <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="connect-src 'none'">
   <meta name="description" content="选择龙皓晨或圣采儿，进入各自的圣光与月夜场景，开启神印王座同人像素飞行试炼。">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23f5d582'/%3E%3Cpath d='M16 4l3 9 9 3-9 3-3 9-3-9-9-3 9-3z' fill='%23754b1e'/%3E%3C/svg%3E">
   <title>神印 · 双境试炼</title>
@@ -60,13 +61,13 @@
     @media(max-width:390px){.intro h1{font-size:26px}.skill-button{width:77px;height:77px}.skill-button .glyph{font-size:23px}.skill-readout{font-size:9px;padding:5px 7px}.skill-dock{left:13px;right:13px;bottom:13px}.under-game .dot{margin:0 3px}}
     @media(max-height:760px) and (min-width:731px){.shell{padding-top:10px}.layout{min-height:calc(100svh - 105px)}.game-column{max-width:400px}.intro,.side{padding-bottom:0}.selection{padding-top:20px}.selection-heading{margin-bottom:20px}}
     @media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;scroll-behavior:auto!important}}
-    .top-actions{display:flex;align-items:center;gap:12px}.top-actions a{text-decoration:none}.player-profile{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin:20px 0 0;color:var(--muted);font-size:12px}.player-profile input{font:13px "PingFang SC",sans-serif;background:#fff7df;border:1px solid var(--line);border-radius:4px;color:var(--ink);width:190px;max-width:100%;padding:9px 11px}.player-profile label{font-weight:600;color:var(--ink)}.profile-note{width:100%;text-align:center;font-size:10px;margin-top:-5px;line-height:1.6}.profile-note span{display:block}input:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
-    @media(max-width:520px){.top-actions{gap:7px}.top-actions .edition{display:none}.player-profile{margin-top:19px}}
+    .top-actions{display:flex;align-items:center;gap:12px}
+    @media(max-width:520px){.top-actions{gap:7px}.top-actions .edition{display:none}}
   </style>
 </head>
 <body data-theme="select">
   <div class="shell">
-    <header class="topbar"><div class="brand"><span class="brand-mark" aria-hidden="true"><span>✦</span></span>神印 · 双境试炼</div><div class="top-actions"><a class="text-button" id="adminLink" href="/admin/" target="_blank" rel="noopener" hidden>在线管理 ↗</a><span class="edition" id="edition">LIGHT & SHADOW</span><button class="text-button" id="backButton" type="button" hidden>← 重新选人</button></div></header>
+    <header class="topbar"><div class="brand"><span class="brand-mark" aria-hidden="true"><span>✦</span></span>神印 · 双境试炼</div><div class="top-actions"><span class="edition" id="edition">LIGHT & SHADOW</span><button class="text-button" id="backButton" type="button" hidden>← 重新选人</button></div></header>
     <main>
       <section class="selection" id="selectionScreen" aria-labelledby="selectionTitle">
         <div class="selection-heading"><div class="eyebrow">神印王座 · 像素飞行试炼</div><h1 id="selectionTitle">选择你的角色</h1><p>从晨光圣殿到月夜城塔，踏上属于你的试炼。</p></div>
@@ -74,7 +75,6 @@
           <button class="character-card" data-hero="long" type="button" aria-pressed="true" aria-label="选择龙皓晨，晨光圣殿"><canvas class="portrait" id="longPortrait" width="480" height="300" aria-hidden="true"></canvas><span class="card-badge">光明骑士</span><span class="selected-marker" aria-hidden="true">✓ 已选择</span><span class="card-copy"><span><span class="card-name">龙皓晨</span><span class="card-scene">晨光圣殿 · 金色天际</span></span><span class="card-record">最高纪录<strong id="longBest">00</strong></span></span></button>
           <button class="character-card" data-hero="caier" type="button" aria-pressed="false" aria-label="选择圣采儿，月夜城塔"><canvas class="portrait" id="caierPortrait" width="480" height="300" aria-hidden="true"></canvas><span class="card-badge">轮回刺客</span><span class="selected-marker" aria-hidden="true">✓ 已选择</span><span class="card-copy"><span><span class="card-name">圣采儿</span><span class="card-scene">月夜城塔 · 暗影之境</span></span><span class="card-record">最高纪录<strong id="caierBest">00</strong></span></span></button>
         </div>
-        <div class="player-profile"><label for="playerName">你的昵称</label><input id="playerName" type="text" maxlength="20" placeholder="选填，留空使用访客编号" autocomplete="off" aria-describedby="profileNote"><div class="profile-note" id="profileNote">昵称及大致网络归属地仅供管理员查看在线情况。<span id="presenceStatus" role="status"></span></div></div>
         <div class="selection-detail" id="selectionDetail" data-hero="long" aria-live="polite"><div class="detail-skill"><strong id="selectionAttack">E · 圣光剑击</strong><span id="selectionAttackDetail">斩断前方飞箭 · 冷却 9 秒</span></div><div class="detail-skill"><strong id="selectionDefense">被动 · 圣光守护</strong><span>自动抵挡撞击 · 无敌 6 秒<br>冷却 14 秒</span></div><button class="primary" id="beginButton" type="button">以龙皓晨开始试炼　➜</button></div>
         <p class="selection-tip"><kbd>空格</kbd> / 点击画面跃升　 ·　 <kbd>E</kbd> / 左下角按钮放技能<br>两个人物分别记录最高分</p>
       </section>
@@ -93,12 +93,10 @@
   <script>
   (() => {
     'use strict';
-    const apiOrigin=window.location?.origin==='https://chenfenghrf.github.io'?'https://holy-wing-trial.luz22stantonqvy.chatgpt.site':'';
-    if(apiOrigin&&new URLSearchParams(window.location.search).has('token')){
-      const target=new URL('/',apiOrigin),query=new URLSearchParams(window.location.search);
-      for(const token of query.getAll('token'))target.searchParams.append('token',token);
-      query.delete('token');window.history.replaceState(null,'',window.location.pathname+(query.size?'?'+query:'')+window.location.hash);
-      window.location.replace(target.href);return;
+    // Old administrator bookmarks now open the standalone game without forwarding credentials.
+    if(window.location?.search){
+      const query=new URLSearchParams(window.location.search);
+      if(query.has('token')){query.delete('token');window.history.replaceState(null,'',window.location.pathname+(query.size?'?'+query:'')+window.location.hash)}
     }
     const canvas=document.getElementById('game');let ctx=canvas.getContext('2d');
     const area=document.getElementById('playArea'),overlay=document.getElementById('overlay'),pauseLayer=document.getElementById('pauseLayer');
@@ -114,7 +112,6 @@
     try{muted=localStorage.getItem('holyWingMuted')==='1'}catch(_){}
     let stars=Array.from({length:64},(_,i)=>({x:(i*137.7)%W,y:(i*83.29)%515,s:(i%7===0?2:1),phase:i*.83}));
     const fmt=n=>String(n).padStart(2,'0');
-    let presenceUpdate=()=>{};
     const HEROES={
       long:{id:'long',name:'龙皓晨',short:'皓晨',scene:'晨光圣殿',trial:'圣光试炼',attack:'圣光剑击',defense:'圣光守护',phase:false,swordDuration:.55,bestKey:'shenyinLongBest',unit:'日耀石柱',eyebrow:'THE TRIAL OF LIGHT',title:'向光而行',subtitle:'守护晨曦',chapter:'THE SUNLIT SANCTUARY',intro:'龙皓晨飞越晨光中的圣殿。轻点跃升，穿过日耀石柱，避开机关与从天而降的飞箭，再以圣光剑击斩断飞箭。',attackDetail:'斩断前方飞箭 · 冷却 9 秒',attackSummary:'圣光剑击 · 斩断飞箭',quote:'圣光剑击：斩断前方飞箭。圣光守护：自动抵挡撞击，触发后无敌 6 秒。',trapsHeading:'◆ 圣殿机关',traps:'◆ 游走魔晶：在通道中上下移动。<br>▲ 伸缩刺刃：留意石柱边缘的红光。<br>↓ 天降飞箭：每局仅 3～4 支，间隔落下；可以躲开或用剑光斩断。',motto:'THE LIGHT SHALL RISE',particle:'#ffe6a0'},
       caier:{id:'caier',name:'圣采儿',short:'采儿',scene:'月夜城塔',trial:'轮回试炼',attack:'轮回之剑',defense:'真实之影',phase:true,swordDuration:1.65,bestKey:'holyWingBest',unit:'暗影之塔',eyebrow:'THE TRIAL OF REINCARNATION',title:'踏影而行',subtitle:'越过深渊',chapter:'THE FALLEN SKY',intro:'圣采儿穿行在暗影之塔间。轻点跃升，避开游走魔晶、伸缩刺刃与飞行小怪，再以轮回之剑斩破险境。',attackDetail:'短暂穿过机关，斩除近身小怪 · 冷却 9 秒',attackSummary:'轮回之剑 · 短暂穿机关',quote:'轮回之剑：短暂穿过机关。真实之影：自动抵挡撞击，触发后无敌 6 秒。',trapsHeading:'◆ 暗影机关',traps:'◆ 游走魔晶：在通道中上下移动。<br>▲ 伸缩刺刃：留意塔边闪烁的紫光。<br>✦ 影蝠与魔眼：在塔楼间游弋，注意提前躲避。',motto:'THE SHADOW SHALL RISE',particle:'#c29bfa'}
@@ -215,7 +212,7 @@
       ctx.restore();
     }
 
-    function syncHud(){scoreEl.textContent=fmt(score);bestHud.textContent=fmt(best);bestSide.textContent=fmt(best);$('longBest').textContent=fmt(readBest('long'));$('caierBest').textContent=fmt(readBest('caier'));presenceUpdate()}
+    function syncHud(){scoreEl.textContent=fmt(score);bestHud.textContent=fmt(best);bestSide.textContent=fmt(best);$('longBest').textContent=fmt(readBest('long'));$('caierBest').textContent=fmt(readBest('caier'))}
     function syncSound(){soundButton.textContent=muted?'♪̸':'♫';soundButton.setAttribute('aria-label',muted?'开启声音':'关闭声音');soundButton.title=muted?'开启声音 / M':'关闭声音 / M'}
     function syncSkills(){skillButton.disabled=mode!=='playing'||swordCooldown>0;skillTimer.textContent=swordTime>0?'施放中':swordCooldown>0?`${Math.ceil(swordCooldown)}s`:'E · 就绪';shadowStatus.textContent=invulnerable>0?`无敌 ${Math.ceil(invulnerable)}s`:shadowCooldown>0?`${Math.ceil(shadowCooldown)}s 后恢复`:'已就绪'}
     selectCharacter(hero.id);syncSound();
@@ -255,7 +252,7 @@
       spark(player.x,player.y,24,'#a68bfa',1.15);tone(460,.19,'triangle',.055,180);syncSkills();
     }
     function finish(){
-      if(mode!=='playing')return;mode='over';presenceUpdate();spark(player.x,player.y,30,'#c49aff',1.5);tone(180,.28,'sawtooth',.035,65);syncSkills();
+      if(mode!=='playing')return;mode='over';spark(player.x,player.y,30,'#c49aff',1.5);tone(180,.28,'sawtooth',.035,65);syncSkills();
       document.getElementById('overlayOverline').textContent=hero.id==='long'?'THE LIGHT ENDURES':'THE SHADOW ENDURES';
       document.getElementById('overlayTitle').textContent='试炼尚未结束';
       document.getElementById('overlayText').textContent=`本次越过 ${score} 座${hero.unit}。${score>=best&&score>0?'你写下了新的试炼纪录！':'重整身法，再向天际出发。'}`;
@@ -263,8 +260,8 @@
       overlay.classList.remove('hidden');
     }
     function togglePause(){
-      if(mode==='playing'){mode='paused';pauseLayer.classList.add('show');pauseButton.textContent='▶';pauseButton.setAttribute('aria-label','继续游戏');syncSkills();presenceUpdate();}
-      else if(mode==='paused'){mode='playing';pauseLayer.classList.remove('show');pauseButton.textContent='Ⅱ';pauseButton.setAttribute('aria-label','暂停游戏');last=performance.now();syncSkills();presenceUpdate()}
+      if(mode==='playing'){mode='paused';pauseLayer.classList.add('show');pauseButton.textContent='▶';pauseButton.setAttribute('aria-label','继续游戏');syncSkills();}
+      else if(mode==='paused'){mode='playing';pauseLayer.classList.remove('show');pauseButton.textContent='Ⅱ';pauseButton.setAttribute('aria-label','暂停游戏');last=performance.now();syncSkills()}
     }
     function action(){if(mode==='over')start();else if(mode==='playing')flap();else if(mode==='paused')togglePause()}
     document.getElementById('startButton').addEventListener('click',e=>{e.stopPropagation();start()});
@@ -559,82 +556,6 @@
       }
       window.addEventListener('pagehide',()=>lifecycle.abort(),{once:true});
     }
-    // GitHub Pages connects to the presence service; local hosting uses its own server.
-    (()=>{
-      const nameInput=$('playerName'),status=$('presenceStatus'),adminLink=$('adminLink');
-      const cleanName=value=>String(value||'').replace(/[\x00-\x1f\x7f]/g,'').slice(0,20);
-      let nickname='';
-      try{nickname=cleanName(localStorage.getItem('shenyinNickname'))}catch(_){}
-      nameInput.value=nickname;
-      const makeId=()=>window.crypto?.randomUUID?.()||Array.from({length:32},()=>Math.floor(Math.random()*16).toString(16)).join('');
-      let visitor;
-      try{visitor=localStorage.getItem('shenyinVisitor');if(!/^(?:[a-f\d]{32}|[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12})$/i.test(visitor||'')){visitor=makeId();localStorage.setItem('shenyinVisitor',visitor)}}catch(_){visitor=makeId()}
-      const session=makeId();let connected=false,unavailable=false,leaving=false,timer=0,pending=false,dirty=false;
-      let playerToken='';
-      const credentialKey='shenyinOnlinePlayer';
-      function readCredential(){
-        try{const saved=JSON.parse(localStorage.getItem(credentialKey));if(saved&&saved.expires_at>Date.now()/1000&&typeof saved.player_token==='string')playerToken=saved.player_token}catch(_){}
-      }
-      async function connect(){
-        if(apiOrigin)readCredential();
-        const probe=await request('/api/session');
-        if(probe.status===404&&!apiOrigin){unavailable=true;status.textContent='单机模式';return}
-        if(!probe.ok)throw new Error();
-        const info=await probe.json();
-        if(apiOrigin){
-          if(typeof info.player_token!=='string'||!info.expires_at)throw new Error();
-          playerToken=info.player_token;
-          try{localStorage.setItem(credentialKey,JSON.stringify({player_token:playerToken,expires_at:info.expires_at}))}catch(_){}
-        }
-        connected=info.presence===true;displayRole(info.admin);
-      }
-      const displayRole=admin=>{adminLink.hidden=admin!==true};
-      const payload=()=>({visitor,session,name:nickname.trim(),hero:hero.id,mode:document.hidden?'away':mode,score});
-      const request=async(url,options={})=>{
-        const controller=new AbortController(),timeout=window.setTimeout(()=>controller.abort(),5000);
-        try{return await window.fetch(apiOrigin+url,{cache:'no-store',...options,credentials:apiOrigin?'omit':'same-origin',headers:{...options.headers,...(apiOrigin&&playerToken?{Authorization:'Bearer '+playerToken}:{})},signal:controller.signal})}
-        finally{window.clearTimeout(timeout)}
-      };
-      async function heartbeat(){
-        if(leaving||unavailable)return;
-        if(pending){dirty=true;return}
-        pending=true;
-        try{
-          if(!connected){
-            if(apiOrigin&&window.navigator?.locks)await window.navigator.locks.request(credentialKey,connect);
-            else await connect();
-            if(!connected)return;
-          }
-          if(leaving)return;
-          const response=await request('/api/presence/heartbeat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload()),keepalive:true});
-          if(response.status===403){connected=false;playerToken='';try{localStorage.removeItem(credentialKey)}catch(_){}}
-          if(!response.ok)throw new Error();
-          const info=await response.json();displayRole(info.admin);status.textContent='在线状态已同步';
-        }catch(_){status.textContent='在线状态暂未同步，游戏可继续';displayRole(false)}
-        finally{pending=false;if(dirty){dirty=false;presenceUpdate()}}
-      }
-      presenceUpdate=()=>{if(!unavailable){window.clearTimeout(timer);timer=window.setTimeout(heartbeat,200)}};
-      nameInput.addEventListener('input',()=>{
-        nickname=cleanName(nameInput.value);
-        try{localStorage.setItem('shenyinNickname',nickname)}catch(_){}
-        presenceUpdate();
-      });
-      window.addEventListener('storage',event=>{if(event.key==='shenyinNickname'){nickname=cleanName(event.newValue);nameInput.value=nickname;presenceUpdate()}});
-      if(!['http:','https:'].includes(window.location?.protocol)||typeof window.fetch!=='function'){unavailable=true;presenceUpdate=()=>{};return}
-      function leave(){
-        leaving=true;window.clearTimeout(timer);
-        if(connected)try{
-          const body=JSON.stringify({visitor,session});
-          if(apiOrigin)window.fetch(apiOrigin+'/api/presence/leave',{method:'POST',credentials:'omit',headers:{'Content-Type':'application/json',Authorization:'Bearer '+playerToken},body,keepalive:true}).catch(()=>{});
-          else window.navigator.sendBeacon('/api/presence/leave',body);
-        }catch(_){}
-      }
-      window.addEventListener('pagehide',leave);
-      window.addEventListener('pageshow',()=>{leaving=false;heartbeat()});
-      document.addEventListener('visibilitychange',heartbeat);
-      heartbeat();window.setInterval(heartbeat,10000);
-    })();
-
     requestAnimationFrame(loop);
   })();
 
