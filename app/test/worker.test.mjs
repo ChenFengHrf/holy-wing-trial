@@ -1,14 +1,14 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {readFileSync} from 'node:fs';
+import {readFileSync,readdirSync} from 'node:fs';
 import vm from 'node:vm';
-import {handle} from '../dist/server/index.js';
+import {handle,clientLocation} from '../dist/server/index.js';
 const origin='https://game.example',secret='test-only-secret-do-not-use-in-production';
 const start=1800000000;
 function create(){
   const sqlite=new DatabaseSync(':memory:');
-  sqlite.exec(readFileSync('drizzle/0000_friendly_black_cat.sql','utf8'));
+  for(const file of readdirSync('drizzle').filter(name=>name.endsWith('.sql')).sort())sqlite.exec(readFileSync('drizzle/'+file,'utf8'));
   const wrap=(sql,args=[])=>({bind(...a){return wrap(sql,a)},async first(){return sqlite.prepare(sql).get(...args)||null},async run(){sqlite.prepare(sql).run(...args);return {success:true}},async all(){return {results:sqlite.prepare(sql).all(...args)}}});
   const DB={prepare:sql=>wrap(sql),async batch(stmts){sqlite.exec('BEGIN');try{const result=await Promise.all(stmts.map(s=>s.all()));sqlite.exec('COMMIT');return result}catch(e){sqlite.exec('ROLLBACK');throw e}}};
   return {sqlite,env:{DB,ADMIN_TOKEN:secret,SITE_ORIGIN:origin}};
@@ -129,4 +129,36 @@ test('only an explicit token in the GitHub URL redirects to administrator login'
   const {env}=create(),a=bootGithub(env,new Map(),undefined,'?token=example-secret');
   assert.equal(a.redirects.length,1);assert.equal(new URL(a.redirects[0]).searchParams.get('token'),'example-secret');
   assert.equal(a.requests[0].history,'/holy-wing-trial/');assert.equal(a.requests.filter(r=>r.url).length,0);
+});
+function withNetwork(request,ip,cf){
+  request.headers.set('CF-Connecting-IP',ip);
+  if(cf)Object.defineProperty(request,'cf',{value:cf});
+  return request;
+}
+test('edge location is stored masked, updates with the connection and is visible only to administrators',async()=>{
+  const {env,sqlite}=create(),guest=await setup(env),owner=await login(env);
+  const r=withNetwork(req('/api/presence/heartbeat',guest,payload()),'203.0.113.25',{country:'CN',region:'Guangdong',city:'Shenzhen',asOrganization:'Example Network'});
+  r.headers.set('X-Forwarded-For','8.8.8.8');r.headers.set('CF-Connecting-IPv6','2001:db8:ffff::1234');
+  const posted=await handle(r,env,start);assert.deepEqual(await posted.json(),{ok:true,admin:false});
+  const snapshot=await (await handle(req('/api/admin/online',owner),env,start)).json();
+  assert.deepEqual(snapshot.players[0].location,{ip_masked:'203.0.113.*',country_code:'CN',region:'Guangdong',city:'Shenzhen',network:'Example Network',source:'cloudflare'});
+  assert.equal((await handle(req('/api/admin/online',guest),env,start)).status,403);
+  assert.ok(!JSON.stringify(sqlite.prepare('SELECT * FROM presence').all()).includes('203.0.113.25'));
+  assert.equal((await handle(req('/api/presence/heartbeat',guest,payload({city:'fake'})),env,start)).status,400);
+  const changed=withNetwork(req('/api/presence/heartbeat',guest,payload()),'2001:db8:abcd:1234::9876',{country:'US',region:'California',city:'San Francisco'});
+  await handle(changed,env,start+1);
+  const updated=await (await handle(req('/api/admin/online',owner),env,start+1)).json();
+  assert.equal(updated.players[0].location.ip_masked,'2001:db8:abcd:*');assert.equal(updated.players[0].location.city,'San Francisco');
+  await handle(req('/api/admin/online',owner),env,start+91);assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM presence').get().n,0);
+});
+test('local, missing, invalid and cross-zone proxy addresses never fabricate geography',()=>{
+  const {env}=create();
+  const incoming=withNetwork(req('/'),'203.0.113.25',{country:'US',region:'Texas',city:'Austin'});
+  assert.equal(clientLocation(incoming,{...env,SITE_ORIGIN:'http://127.0.0.1:8833'}).source,'local');
+  const noIP=req('/');noIP.headers.set('X-Forwarded-For','8.8.8.8');assert.equal(clientLocation(noIP,env).country_code,'');
+  for(const ip of ['999.2.3.4','203.0.113.25, 8.8.8.8','2a06:98c0:3600::103']){
+    const info=clientLocation(withNetwork(req('/'),ip,{country:'US',city:'Austin'}),env);assert.equal(info.ip_masked,'');assert.equal(info.city,'');
+  }
+  const countryOnly=withNetwork(req('/'),'203.0.113.25');countryOnly.headers.set('CF-IPCountry','JP');
+  assert.deepEqual(clientLocation(countryOnly,env),{ip_masked:'203.0.113.*',country_code:'JP',region:'',city:'',network:'',source:'country-only'});
 });

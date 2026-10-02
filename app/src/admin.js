@@ -26,11 +26,26 @@
     if(active){active.controller.abort();clearTimeout(active.timeout);active=null}
   }
   const duration=s=>s<60?`${s} 秒`:`${Math.floor(s/60)} 分${s%60?` ${s%60} 秒`:''}`;
+  let countryNames;try{countryNames=new Intl.DisplayNames(['zh-CN'],{type:'region'})}catch(_){}
+  const countryName=code=>{if(!/^[A-Z]{2}$/.test(code||''))return '';try{return countryNames?.of(code)||code}catch(_){return code}};
+  function locationLabel(location={}){
+    const parts=[countryName(location.country_code),location.region,location.city].filter(Boolean);
+    if(parts.length)return [...new Set(parts)].join(' · ');
+    return location.source==='local'?'本地网络':location.source==='proxy'?'中转网络 · 暂未识别':'暂未识别';
+  }
+  function renderRegions(players){
+    const groups=new Map();
+    for(const p of players){const loc=p.location||{},label=[countryName(loc.country_code),loc.region].filter(Boolean).join(' · ')||locationLabel(loc);groups.set(label,(groups.get(label)||0)+1)}
+    const sorted=[...groups].sort((a,b)=>b[1]-a[1]),shown=sorted.slice(0,6).map(([name,count])=>`${name} ${count}`);
+    if(sorted.length>6)shown.push(`其他地区 ${sorted.slice(6).reduce((sum,item)=>sum+item[1],0)}`);
+    $('regionSummary').textContent=players.length?'在线访客地区分布：'+shown.join('　/　'):'访客上线后，将显示 IP 归属地分布。';
+  }
   const cell=(row,label,text,cls)=>{const td=document.createElement('td');td.dataset.label=label;if(cls)td.className=cls;if(text!==undefined)td.textContent=text;row.append(td);return td};
   function render(){
     if(!snapshot)return;
     const all=snapshot.players,needle=$('search').value.trim().toLocaleLowerCase();
-    const players=all.filter(p=>`${p.name} ${p.character}`.toLocaleLowerCase().includes(needle));
+    const players=all.filter(p=>`${p.name} ${p.character} ${locationLabel(p.location)} ${p.location?.ip_masked||''} ${p.location?.network||''}`.toLocaleLowerCase().includes(needle));
+    renderRegions(all);
     $('onlineCount').textContent=snapshot.online;$('playingCount').textContent=snapshot.playing;$('pausedCount').textContent=snapshot.paused;
     $('selectCount').textContent=all.filter(p=>p.mode==='select').length;
     $('longCount').textContent=all.filter(p=>p.hero==='long'&&p.mode==='playing').length;$('caierCount').textContent=all.filter(p=>p.hero==='caier'&&p.mode==='playing').length;
@@ -44,6 +59,9 @@
       identity.append(avatar,name);
       const character=cell(row,'人物',(p.mode==='select'?'预选 · ':'')+p.character,'character');
       const scene=document.createElement('span');scene.className='sub';scene.textContent=p.mode==='select'?'尚未开始试炼':p.hero==='long'?'晨光圣殿':'月夜城塔';character.append(scene);
+      const loc=p.location||{},geography=cell(row,'IP 归属地',locationLabel(loc),'location');
+      if(loc.ip_masked){const ip=document.createElement('span');ip.className='sub ip';ip.textContent='IP '+loc.ip_masked+'（脱敏）';geography.append(ip)}
+      if(loc.network){const network=document.createElement('span');network.className='sub';network.textContent=loc.network;geography.append(network)}
       const status=document.createElement('span');status.className=`status ${p.mode}`;status.textContent=modes[p.mode]||'在线';cell(row,'状态').append(status);
       cell(row,'分数',String(p.score));cell(row,'时长',duration(p.online_seconds));
       const seconds=Math.max(0,Math.floor(snapshot.updated_at-p.last_seen));cell(row,'报到',seconds<3?'刚刚':`${seconds} 秒前`);
@@ -51,7 +69,7 @@
     }
     $('players').replaceChildren(rows);$('playerTable').hidden=players.length===0;$('empty').hidden=players.length>0;
     $('emptyTitle').textContent=needle?'没有匹配的访客':'还没有访客在线';
-    $('emptyText').textContent=needle?'换个昵称或人物名称试试。':'打开游戏，填写昵称后就能在这里看到自己。';
+    $('emptyText').textContent=needle?'换个昵称、人物或地区试试。':'打开游戏，填写昵称后就能在这里看到自己。';
   }
   async function refresh(force=false){
     if(expired||stopped)return;
@@ -74,7 +92,7 @@
       ]);
       if(active!==request)return;
       if(result.unauthorized){
-        expired=true;snapshot=null;$('players').replaceChildren();$('playerTable').hidden=true;$('empty').hidden=false;
+        expired=true;snapshot=null;$('players').replaceChildren();$('regionSummary').textContent='';$('playerTable').hidden=true;$('empty').hidden=false;
         ['onlineCount','playingCount','pausedCount','selectCount','longCount','caierCount'].forEach(id=>$(id).textContent='—');
         $('emptyTitle').textContent='管理员登录已失效';$('emptyText').textContent='请重新打开你的管理员专用链接。';
         throw new Error('请使用带 token 的专用链接重新进入后台。');

@@ -81,3 +81,12 @@ test('returning from cached page, focus and network recovery refresh immediately
   app.reply=()=>json(data([]));await app.advance(2000);await app.event('focus');assert.equal(app.calls.length,count+1);
   finish(json(data([person()])));await flush();assert.equal(app.el('onlineCount').textContent,'0');
 });
+test('admin shows geography, masked IP and regional totals, supports region search and clears locations at logout expiry',async()=>{
+  const first=person({name:'甲',location:{country_code:'CN',region:'Guangdong',city:'Shenzhen',ip_masked:'203.0.113.*',network:'Example Network',source:'cloudflare'}});
+  const second=person({name:'乙',location:{country_code:'JP',region:'Tokyo',city:'Tokyo',ip_masked:'2001:db8:abcd:*',source:'cloudflare'}});
+  const app=await browser(()=>json(data([first,second])));
+  assert.match(app.el('regionSummary').textContent,/中国 · Guangdong 1/);assert.match(app.el('regionSummary').textContent,/日本 · Tokyo 1/);
+  assert.match(app.el('players').textContent,/203\.0\.113\.\*/);assert.match(app.el('players').textContent,/Shenzhen/);
+  app.el('search').value='日本';app.el('search').listeners.input();assert.match(app.el('players').textContent,/乙/);assert.ok(!app.el('players').textContent.includes('甲'));
+  app.reply=()=>json({error:'需要管理员权限'},403);await app.advance(3000);assert.equal(app.el('regionSummary').textContent,'');assert.equal(app.el('players').textContent,'');
+});

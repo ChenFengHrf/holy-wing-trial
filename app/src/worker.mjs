@@ -26,6 +26,33 @@ function reply(body,status=200,contentType='application/json; charset=utf-8',ext
   return new Response(typeof body==='string'?body:JSON.stringify(body),{status,headers});
 }
 const denied=()=>reply('<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>需要管理员权限</title><body style="font-family:sans-serif;background:#f5d582;color:#4b3119;padding:10vh 8vw"><h1>需要管理员权限</h1><p>请使用你的管理员专用链接进入。</p><a href="/">返回游戏</a></body></html>',403,'text/html; charset=utf-8');
+const locationText=value=>typeof value==='string'?value.replace(/[\x00-\x1f\x7f]/g,'').trim().slice(0,100):'';
+function validIP(value){
+  if(typeof value!=='string'||value.length>45)return '';
+  if(/^\d{1,3}(\.\d{1,3}){3}$/.test(value)&&value.split('.').every(n=>Number(n)<=255))return value;
+  if(!/^[a-f\d:.]+$/i.test(value)||!value.includes(':'))return '';
+  try{return new URL('http://['+value+']/').hostname.slice(1,-1)}catch(_){return ''}
+}
+function maskIP(ip){
+  if(!ip)return '';
+  if(!ip.includes(':'))return ip.split('.').slice(0,3).join('.')+'.*';
+  // Expand before masking so compressed IPv6 does not accidentally reveal its host part.
+  const halves=ip.split('::'),left=halves[0]?halves[0].split(':'):[],right=halves[1]?halves[1].split(':'):[];
+  const parts=halves.length===2?[...left,...Array(8-left.length-right.length).fill('0'),...right]:left;
+  return parts.slice(0,3).join(':')+':*';
+}
+export function clientLocation(request,env){
+  const empty={ip_masked:'',country_code:'',region:'',city:'',network:'',source:'unavailable'};
+  // Local Miniflare previews contain placeholder geography: never present it as a real location.
+  if(!env.SITE_ORIGIN.startsWith('https:'))return {...empty,source:'local'};
+  const ip=validIP(request.headers.get('CF-Connecting-IP'));
+  if(ip==='2a06:98c0:3600::103')return {...empty,source:'proxy'};
+  if(!ip)return empty;
+  const cf=request.cf||{},rawCountry=locationText(cf.country||request.headers.get('CF-IPCountry')).toUpperCase();
+  const country=/^[A-Z]{2}$/.test(rawCountry)&&!['XX','ZZ'].includes(rawCountry)?rawCountry:'';
+  // Only Cloudflare ingress metadata is used; ignore X-Forwarded-For and client-supplied payload fields.
+  return {ip_masked:maskIP(ip),country_code:country,region:locationText(cf.region),city:locationText(cf.city),network:locationText(cf.asOrganization),source:cf.country?'cloudflare':country?'country-only':'ip-only'};
+}
 // D1 is shared across all Worker instances; presence and sessions cannot live in isolate memory.
 const statement=(env,sql,...values)=>env.DB.prepare(sql).bind(...values);
 async function admin(request,env,now){
@@ -64,7 +91,7 @@ async function online(env,now){
   const players=[];
   for(const sessions of groups.values()){
     const latest=sessions.find(p=>p.mode!=='away')||sessions[0];
-    players.push({name:latest.name,hero:latest.hero,character:heroNames[latest.hero],mode:latest.mode,score:latest.score,tabs:sessions.length,online_seconds:Math.max(0,now-Math.min(...sessions.map(p=>p.first_seen))),last_seen:Math.max(...sessions.map(p=>p.last_seen))});
+    players.push({name:latest.name,hero:latest.hero,character:heroNames[latest.hero],mode:latest.mode,score:latest.score,tabs:sessions.length,online_seconds:Math.max(0,now-Math.min(...sessions.map(p=>p.first_seen))),last_seen:Math.max(...sessions.map(p=>p.last_seen)),location:{ip_masked:latest.ip_masked,country_code:latest.country_code,region:latest.region,city:latest.city,network:latest.network,source:latest.location_source||'unavailable'}});
   }
   players.sort((a,b)=>b.last_seen-a.last_seen);
   return {players,online:players.length,playing:players.filter(p=>p.mode==='playing').length,paused:players.filter(p=>p.mode==='paused').length,updated_at:now,offline_after_seconds:TTL};
@@ -101,10 +128,11 @@ async function presence(request,env,path,now){
     const count=await statement(env,'SELECT COUNT(*) AS total FROM presence WHERE last_seen > ?',now-TTL).first();
     const previous=await statement(env,'SELECT last_seen FROM presence WHERE visitor = ? AND session = ?',visitor,p.session.toLowerCase()).first();
     if(!previous&&count.total>=1000)return reply({error:'在线连接较多，请稍后重试'},429);
+    const location=clientLocation(request,env);
     await env.DB.batch([
       statement(env,'DELETE FROM presence WHERE last_seen <= ?',now-TTL),
-      statement(env,`INSERT INTO presence (visitor,session,name,hero,mode,score,first_seen,last_seen) VALUES (?,?,?,?,?,?,?,?)
-        ON CONFLICT(visitor,session) DO UPDATE SET name=excluded.name,hero=excluded.hero,mode=excluded.mode,score=excluded.score,last_seen=excluded.last_seen`,visitor,p.session.toLowerCase(),p.name.trim()||`访客 · ${visitor.slice(-4).toUpperCase()}`,p.hero,p.mode,p.score,now,now),
+      statement(env,`INSERT INTO presence (visitor,session,name,hero,mode,score,first_seen,last_seen,ip_masked,country_code,region,city,network,location_source) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ON CONFLICT(visitor,session) DO UPDATE SET name=excluded.name,hero=excluded.hero,mode=excluded.mode,score=excluded.score,last_seen=excluded.last_seen,ip_masked=excluded.ip_masked,country_code=excluded.country_code,region=excluded.region,city=excluded.city,network=excluded.network,location_source=excluded.location_source`,visitor,p.session.toLowerCase(),p.name.trim()||`访客 · ${visitor.slice(-4).toUpperCase()}`,p.hero,p.mode,p.score,now,now,location.ip_masked,location.country_code,location.region,location.city,location.network,location.source),
     ]);
   }
   return reply({ok:true,admin:await admin(request,env,now)});

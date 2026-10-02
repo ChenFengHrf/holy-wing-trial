@@ -55,10 +55,16 @@ try:
     assert status==200 and headers.get('Access-Control-Allow-Origin')==github
     status,body,_=request(owner,'/api/admin/online')
     assert status==200 and any(x['name']==remote_player['name'] for x in json.loads(body)['players'])
+    location=next(x['location'] for x in json.loads(body)['players'] if x['name']==remote_player['name'])
+    if base.startswith('https:'):
+        assert location['ip_masked'].endswith('*'), 'Hosted request did not supply a masked visitor IP'
+        assert location['country_code'] and location['source'] in ['cloudflare','country-only'], 'Hosted visitor country unavailable'
+    else:
+        assert location['source']=='local' and not location['country_code']
     assert request(remote,'/api/admin/online',headers=cross)[0]==403
     assert request(remote,'/api/presence/heartbeat',remote_player,cross|{'Origin':'https://invalid.example'})[0]==403
 finally:
     assert request(remote,'/api/presence/leave',{'visitor':visitor,'session':session},cross)[0]==200
 assert request(owner,'/api/admin/logout',{})[0]==200
 assert request(owner,'/api/admin/online')[0]==403
-print(json.dumps({'passed':True,'checks':['anonymous denied','owner token login','protected dashboard','signed guest sessions','two independent players','status and scores','GitHub CORS preflight','cookie-free GitHub heartbeat','GitHub visitor cannot read admin','unapproved origin rejected','leave cleanup','logout revocation']},ensure_ascii=False))
+print(json.dumps({'passed':True,'checks':['anonymous denied','owner token login','protected dashboard','signed guest sessions','two independent players','status and scores','GitHub CORS preflight','cookie-free GitHub heartbeat','server-derived location and masked IP','GitHub visitor cannot read admin','unapproved origin rejected','leave cleanup','logout revocation'],'location_detail_available':bool(location['city']),'location_source':location['source']},ensure_ascii=False))
