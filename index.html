@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#080c19">
+  <meta name="description" content="圣采儿主题像素飞行小游戏：跃升穿塔，躲避魔晶、刺刃、影蝠与魔眼，使用轮回之剑和真实之影。">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2032%2032%27%3E%3Cpath%20fill%3D%27%23090e1c%27%20d%3D%27M0%200h32v32H0z%27%2F%3E%3Cpath%20fill%3D%27none%27%20stroke%3D%27%23eac980%27%20stroke-width%3D%272%27%20d%3D%27M16%203L29%2016%2016%2029%203%2016z%27%2F%3E%3Cpath%20fill%3D%27%23c5a8e4%27%20d%3D%27M16%208l2%206%206%202-6%202-2%206-2-6-6-2%206-2z%27%2F%3E%3C%2Fsvg%3E">
+  <title>圣采儿 · 轮回试炼</title>
+  <style>
+    :root{--ink:#090e1c;--ink-2:#111b31;--gold:#eac980;--gold-soft:#ac8a52;--ivory:#f6ecd3;--muted:#a5acb9;--cyan:#8de5e3;--line:rgba(234,201,128,.24)}
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:var(--ink);color:var(--ivory)}
+    body{font-family:"Songti SC","Noto Serif CJK SC","SimSun",serif;overflow-x:hidden;background:radial-gradient(circle at 51% 28%,#1c3150 0,#101a30 37%,#090e1c 78%)}
+    body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.33;background-image:radial-gradient(#e8d7a1 0.7px,transparent 1px);background-size:33px 33px;mask-image:linear-gradient(to bottom,#000,transparent 78%)}
+    button{font:inherit;cursor:pointer}
+    button:focus-visible{outline:2px solid var(--cyan);outline-offset:4px}
+    .shell{max-width:1500px;margin:auto;min-height:100svh;padding:24px clamp(18px,4vw,64px) 28px;position:relative}
+    .topbar{height:52px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);letter-spacing:.18em}
+    .brand{display:flex;align-items:center;gap:12px;color:var(--gold);font-size:14px;font-weight:bold;white-space:nowrap}
+    .brand-mark{position:relative;width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--gold);transform:rotate(45deg);box-shadow:0 0 20px rgba(234,201,128,.13)}
+    .brand-mark:before{content:"✦";font-size:20px;transform:rotate(-45deg)}
+    .edition{font-family:Georgia,serif;font-size:11px;color:#8c9aaf;letter-spacing:.3em}
+    .layout{display:grid;grid-template-columns:minmax(230px,1fr) minmax(320px,480px) minmax(205px,.75fr);gap:clamp(22px,4vw,68px);align-items:center;min-height:calc(100svh - 130px)}
+    .intro{align-self:center;padding-bottom:60px}
+    .eyebrow,.tiny-head{color:var(--gold);font-family:Georgia,"Songti SC",serif;font-size:11px;letter-spacing:.33em;text-transform:uppercase}
+    .eyebrow:before{content:"";display:inline-block;vertical-align:middle;width:34px;height:1px;background:var(--gold);margin-right:12px}
+    h1{margin:27px 0 24px;font-size:clamp(42px,4vw,76px);font-weight:500;letter-spacing:.07em;line-height:1.28;text-shadow:0 10px 40px #0008}
+    h1 span{display:block;color:var(--gold)}
+    .intro p{max-width:340px;color:#b4bdcb;font-size:15px;line-height:2.1;letter-spacing:.08em;margin:0}
+    .story-rule{width:52px;height:1px;background:var(--gold-soft);margin:32px 0 24px}
+    .story-quote{max-width:330px;color:#8c9aae;font-size:13px;line-height:1.9;letter-spacing:.09em}
+    .chapter{margin-top:42px;color:#647188;font-family:Georgia,serif;font-size:11px;letter-spacing:.3em}
+    .game-column{width:100%;max-width:480px;justify-self:center;padding:17px 0 10px}
+    .game-top{display:flex;align-items:center;justify-content:space-between;margin:0 3px 12px;color:#9aa6b9;font-family:Georgia,"Songti SC",serif;font-size:11px;letter-spacing:.25em}
+    .game-top .live{color:var(--gold)}
+    .game-top .live:before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 10px var(--gold);margin-right:9px;vertical-align:middle}
+    .frame{position:relative;border:1px solid #b591567a;padding:8px;background:linear-gradient(135deg,#e4c17e44,#213c5670 19%,#070c19 49%,#d5a95c44 100%);box-shadow:0 0 0 5px #050a16,0 0 0 6px #bd945139,0 24px 90px #000a,0 0 80px #7c9aca13}
+    .frame:before,.frame:after{content:"✧";position:absolute;z-index:5;color:var(--gold);font-size:23px;line-height:1;top:-17px;text-shadow:0 0 12px #ffce73}
+    .frame:before{left:-13px}.frame:after{right:-13px}
+    .play-area{position:relative;width:100%;aspect-ratio:2/3;overflow:hidden;background:#0a1327;touch-action:none;user-select:none}
+    canvas{display:block;width:100%;height:100%;image-rendering:pixelated}
+    .play-area:after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 42px 18px #06101f86}
+    .hud{position:absolute;z-index:2;top:18px;left:19px;right:19px;display:flex;justify-content:space-between;align-items:start;pointer-events:none}
+    .hud-block{display:flex;flex-direction:column;gap:2px;text-shadow:0 2px 10px #07101d}
+    .hud-label{font-family:Georgia,"Songti SC",serif;color:#e4cb96;font-size:10px;letter-spacing:.24em}
+    .hud-number{color:#fff5d8;font:36px Georgia,serif;line-height:1}
+    .hud .right{text-align:right}
+    .skill-dock{position:absolute;z-index:2;left:16px;right:16px;bottom:16px;display:flex;align-items:end;justify-content:space-between;gap:10px;pointer-events:none}
+    .skill-readout{color:#efe2f7;text-shadow:0 2px 8px #070a1e;font-size:11px;line-height:1.6;letter-spacing:.06em;background:#101427a8;border-left:2px solid #c89bea;padding:5px 8px}
+    .skill-readout strong{font-weight:normal;color:#d7adff}
+    .skill-button{pointer-events:auto;flex:none;width:98px;height:98px;border:2px solid #d4a8f9;color:#f7e9ff;background:radial-gradient(circle at 50% 35%,#693f8f,#23172f 75%);border-radius:50%;box-shadow:0 0 0 4px #171328cc,0 0 22px #b767f688,inset 0 0 22px #cc84ff45;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;touch-action:none;transition:transform .15s,filter .15s}
+    .skill-button:hover:not(:disabled){transform:scale(1.05);filter:brightness(1.17)}
+    .skill-button:active:not(:disabled){transform:scale(.96)}
+    .skill-button:disabled{cursor:default;filter:grayscale(.6) brightness(.75);box-shadow:0 0 0 4px #171328cc}
+    .skill-button .glyph{font-size:31px;line-height:1}.skill-button .name{font-size:10px;letter-spacing:.05em}.skill-button .timer{font:12px Georgia,serif;min-height:13px}
+    .overlay{position:absolute;z-index:4;inset:0;display:flex;align-items:center;justify-content:center;padding:26px;background:linear-gradient(to bottom,#07101e52,#07101ebb 43%,#07101eea);transition:opacity .22s,visibility .22s}
+    .overlay.hidden{opacity:0;visibility:hidden;pointer-events:none}
+    .overlay-card{text-align:center;width:100%;max-width:360px;padding:34px 23px 30px;border:1px solid #ebd29964;background:linear-gradient(150deg,#14203be9,#0a1225eb);box-shadow:0 0 0 5px #0c1425a8,0 18px 50px #0008,0 0 55px #ddbd6a1a;position:relative}
+    .overlay-card:before,.overlay-card:after{content:"◆";position:absolute;color:var(--gold);font:14px Georgia,serif;top:-9px}.overlay-card:before{left:-7px}.overlay-card:after{right:-7px}
+    .crest{width:84px;height:84px;margin:0 auto 18px;display:grid;place-items:center;color:#ffe3a1;font-size:42px;text-shadow:0 0 26px #e9c879;position:relative}
+    .crest:before{content:"";position:absolute;inset:8px;border:1px solid #cfa969;transform:rotate(45deg)}
+    .crest:after{content:"";position:absolute;inset:19px;border:1px solid #cfa9697a;transform:rotate(45deg)}
+    .overline{font:10px Georgia,"Songti SC",serif;letter-spacing:.33em;color:var(--gold)}
+    .overlay h2{font-size:29px;font-weight:500;letter-spacing:.15em;margin:12px 0 9px}
+    .overlay p{font-size:12px;line-height:1.8;letter-spacing:.08em;color:#b1bdd0;margin:0 auto 25px;max-width:280px}
+    .primary{border:1px solid #f6dea2;background:linear-gradient(180deg,#f6dc9c,#d0a352);color:#1c2130;letter-spacing:.19em;font-size:15px;font-weight:bold;padding:13px 30px;min-width:210px;box-shadow:0 5px 0 #6b4d29,0 12px 24px #0006;transition:transform .15s,box-shadow .15s}
+    .primary:hover{transform:translateY(-2px);box-shadow:0 7px 0 #6b4d29,0 16px 28px #0008}.primary:active{transform:translateY(3px);box-shadow:0 2px 0 #6b4d29}
+    .overlay-tip{display:block;margin-top:21px;color:#75859d;font-size:11px;letter-spacing:.14em}
+    .pause-layer{position:absolute;z-index:3;inset:0;display:none;align-items:center;justify-content:center;background:#081020aa;backdrop-filter:blur(3px)}
+    .pause-layer.show{display:flex}
+    .pause-inner{text-align:center;border:1px solid var(--line);background:#0b162ce9;padding:28px 36px;color:var(--gold);letter-spacing:.2em;box-shadow:0 15px 35px #0008}
+    .pause-inner strong{display:block;font-size:23px;font-weight:normal;margin-bottom:16px}
+    .pause-inner button{background:transparent;color:var(--ivory);border:1px solid var(--gold-soft);padding:9px 20px;letter-spacing:.15em}
+    .under-game{display:flex;align-items:center;justify-content:space-between;margin:17px 3px 0;color:#8190a4;font-size:12px;letter-spacing:.09em}
+    .under-game kbd{border:1px solid #76859a77;border-bottom-width:2px;border-radius:3px;padding:2px 6px;color:#d6dce6;font:11px Georgia,serif}
+    .under-game .dot{margin:0 8px;color:var(--gold-soft)}
+    .icon-buttons{display:flex;gap:8px}.icon-buttons button{background:#111e34;color:#d6c08c;border:1px solid #9b7c4d70;min-width:34px;height:30px;font-size:15px;display:grid;place-items:center}
+    .side{align-self:center;padding-bottom:65px}
+    .side-card{border-top:1px solid var(--line);padding:18px 0 24px;margin-bottom:22px}
+    .side-card h3{color:var(--gold);font-size:12px;font-weight:normal;letter-spacing:.28em;margin:0 0 17px}
+    .record{display:flex;align-items:baseline;gap:12px}.record strong{font:49px Georgia,serif;color:var(--ivory);line-height:1}.record span{font-size:12px;color:#8291a6;letter-spacing:.15em}
+    .side-card p{font-size:12px;line-height:1.85;color:#93a1b4;letter-spacing:.06em;margin:0}
+    .key-row{display:flex;align-items:center;justify-content:space-between;margin-top:15px;border-bottom:1px solid #ffffff16;padding-bottom:13px;color:#adb8c7;font-size:12px}.key-row:last-child{border:0}
+    .keycaps{display:flex;gap:4px}.keycaps kbd{font:11px Georgia,serif;min-width:25px;text-align:center;color:#e1c990;background:#1a2940;border:1px solid #ab895652;padding:5px 7px}
+    .sigil{width:70px;height:70px;border:1px solid #b0915b56;transform:rotate(45deg);margin:37px auto 0;display:grid;place-items:center;color:#bd9c62;font-size:27px;opacity:.55}.sigil span{transform:rotate(-45deg)}
+    .footer{display:flex;justify-content:space-between;color:#68778d;font:10px Georgia,"Songti SC",serif;letter-spacing:.18em;border-top:1px solid #ac925634;padding-top:17px}
+    @media(max-width:1120px){.layout{grid-template-columns:minmax(180px,1fr) minmax(320px,480px);gap:28px}.side{display:none}.intro h1{font-size:clamp(36px,5vw,60px)}}
+    @media(max-width:730px){.shell{padding:12px 16px 20px}.topbar{height:40px}.brand{font-size:11px}.brand-mark{width:24px;height:24px}.edition{font-size:9px;letter-spacing:.08em}.layout{display:flex;flex-direction:column;gap:10px;min-height:0}.intro{padding:20px 0 0;align-self:stretch}.intro h1{font-size:32px;line-height:1.2;margin:11px 0 5px}.intro h1 span{display:inline}.intro h1 span:before{content:" "}.intro p,.story-rule,.story-quote,.chapter{display:none}.eyebrow{font-size:9px}.eyebrow:before{width:18px}.game-column{padding:0 0 16px;width:min(100%,440px)}.game-top{margin-bottom:7px}.under-game{font-size:10px}.footer{font-size:9px}}
+    @media(max-width:390px){.intro h1{font-size:27px}.under-game .dot{margin:0 3px}.skill-button{width:80px;height:80px}.skill-button .glyph{font-size:25px}.skill-readout{font-size:10px}}
+    @media(max-height:760px) and (min-width:731px){.shell{padding-top:12px}.layout{min-height:calc(100svh - 100px)}.game-column{max-width:400px}.intro{padding-bottom:0}.side{padding-bottom:0}.chapter{margin-top:22px}}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar"><div class="brand"><span class="brand-mark"></span> 圣采儿 · 轮回试炼</div><div class="edition">A PIXEL FANTASY ARCADE · 02</div></header>
+    <main class="layout">
+      <section class="intro" aria-label="游戏介绍">
+        <div class="eyebrow">THE TRIAL OF REINCARNATION</div>
+        <h1>踏影而行<span>越过深渊</span></h1>
+        <p>圣采儿穿行在暗影之塔间。轻点跃升，避开游走魔晶、伸缩刺刃与飞行小怪，再以轮回之剑斩破险境。</p>
+        <div class="story-rule"></div>
+        <div class="story-quote">轮回之剑：短暂穿过机关。真实之影：自动抵挡撞击，触发后无敌 6 秒。</div>
+        <div class="chapter">CHAPTER I / THE FALLEN SKY</div>
+      </section>
+      <section class="game-column" aria-label="圣采儿轮回试炼游戏">
+        <div class="game-top"><span class="live">圣域边境</span><span>TRIAL 01 / ∞</span></div>
+        <div class="frame">
+          <div class="play-area" id="playArea" aria-label="游戏画面，点击或按空格跃升，按 E 释放轮回之剑">
+            <canvas id="game" width="480" height="720" tabindex="0" aria-label="圣采儿的像素试炼画面，空格、上箭头或 W 跃升，E 释放轮回之剑"></canvas>
+            <div class="hud"><div class="hud-block"><span class="hud-label">SCORE / 穿越</span><span class="hud-number" id="score">00</span></div><div class="hud-block right"><span class="hud-label">BEST / 纪录</span><span class="hud-number" id="bestHud">00</span></div></div>
+            <div class="skill-dock"><div class="skill-readout"><div><strong>真实之影</strong> · <span id="shadowStatus">已就绪</span></div><div>撞到敌人或机关时触发</div></div><button class="skill-button" id="skillButton" type="button" aria-label="释放轮回之剑"><span class="glyph">✦</span><span class="name">轮回之剑</span><span class="timer" id="skillTimer">E · 就绪</span></button></div>
+            <div class="overlay" id="overlay"><div class="overlay-card"><div class="crest">✦</div><div class="overline" id="overlayOverline">THE SHADOW AWAKENS</div><h2 id="overlayTitle">轮回试炼</h2><p id="overlayText">点击或按空格跃升，躲开塔楼机关与飞行小怪；按 E 挥动轮回之剑。</p><button class="primary" id="startButton" type="button">开始试炼　➜</button><span class="overlay-tip">真实之影会自动挡下一次撞击</span></div></div>
+            <div class="pause-layer" id="pauseLayer"><div class="pause-inner"><strong>试炼暂停</strong><button id="resumeButton" type="button">继续试炼</button></div></div>
+          </div>
+        </div>
+        <div class="under-game"><div><kbd>SPACE</kbd> 跃升 <span class="dot">·</span> <kbd>E</kbd> 轮回之剑</div><div class="icon-buttons"><button id="pauseButton" type="button" aria-label="暂停游戏" title="暂停 / P">Ⅱ</button><button id="soundButton" type="button" aria-label="关闭声音" title="声音 / M">♫</button></div></div>
+      </section>
+      <aside class="side" aria-label="试炼信息">
+        <div class="side-card"><h3>◆ 试炼记录</h3><div class="record"><strong id="bestSide">00</strong><span>座暗影之塔</span></div><p>以刺客的身法与轮回之力，穿越暗影之塔。</p></div>
+        <div class="side-card"><h3>◆ 采儿的技能</h3><div class="key-row"><span>轮回之剑 · 短暂穿机关</span><span class="keycaps"><kbd>E</kbd></span></div><div class="key-row"><span>真实之影 · 无敌 6 秒</span><span class="keycaps"><kbd>被动</kbd></span></div><div class="key-row"><span>跃升</span><span class="keycaps"><kbd>空格</kbd><kbd>点击</kbd></span></div></div>
+        <div class="side-card"><h3>◆ 暗影机关</h3><p>◆ 游走魔晶：在通道中上下移动。<br>▲ 伸缩刺刃：留意塔边闪烁的紫光。<br>✦ 影蝠与魔眼：在塔楼间游弋，注意提前躲避。</p></div>
+        <div class="sigil" aria-hidden="true"><span>✦</span></div>
+      </aside>
+    </main>
+    <footer class="footer"><span>神印王座同人像素小游戏</span><span>THE SHADOW SHALL RISE</span></footer>
+  </div>
+  <script>
+  (() => {
+    'use strict';
+    const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+    const area=document.getElementById('playArea'),overlay=document.getElementById('overlay'),pauseLayer=document.getElementById('pauseLayer');
+    const scoreEl=document.getElementById('score'),bestHud=document.getElementById('bestHud'),bestSide=document.getElementById('bestSide');
+    const soundButton=document.getElementById('soundButton'),pauseButton=document.getElementById('pauseButton');
+    const skillButton=document.getElementById('skillButton'),skillTimer=document.getElementById('skillTimer'),shadowStatus=document.getElementById('shadowStatus');
+    const W=480,H=720,FLOOR=671,PLAYER_X=126,GRAVITY=1280,FLAP=-400,GAP=202,OBSTACLE_W=84;
+    const SWORD_DURATION=1.65,SWORD_COOLDOWN=9,SHADOW_COOLDOWN=14,SHADOW_DURATION=6;
+    ctx.imageSmoothingEnabled=false;
+    let mode='ready',player={x:PLAYER_X,y:330,vy:0,angle:0},obstacles=[],monsters=[],particles=[],score=0,elapsed=0,spawnClock=0,spawnCount=0,monsterCount=0,monsterSpawned=false,last=0,frameTime=0,audioContext=null;
+    let swordTime=0,swordCooldown=0,shadowCooldown=0,shadowFlash=0,invulnerable=0;
+    let best=0,muted=false;
+    try{best=Number(localStorage.getItem('holyWingBest')||0)||0;muted=localStorage.getItem('holyWingMuted')==='1'}catch(_){}
+    let stars=Array.from({length:64},(_,i)=>({x:(i*137.7)%W,y:(i*83.29)%515,s:(i%7===0?2:1),phase:i*.83}));
+    const fmt=n=>String(n).padStart(2,'0');
+    function syncHud(){scoreEl.textContent=fmt(score);bestHud.textContent=fmt(best);bestSide.textContent=fmt(best)}
+    function syncSound(){soundButton.textContent=muted?'♪̸':'♫';soundButton.setAttribute('aria-label',muted?'开启声音':'关闭声音');soundButton.title=muted?'开启声音 / M':'关闭声音 / M'}
+    function syncSkills(){skillButton.disabled=mode!=='playing'||swordCooldown>0;skillTimer.textContent=swordTime>0?'施放中':swordCooldown>0?`${Math.ceil(swordCooldown)}s`:'E · 就绪';shadowStatus.textContent=invulnerable>0?`无敌 ${Math.ceil(invulnerable)}s`:shadowCooldown>0?`${Math.ceil(shadowCooldown)}s 后恢复`:'已就绪'}
+    syncHud();syncSound();syncSkills();
+    function tone(freq,duration,type='sine',volume=.07,endFreq=freq){
+      if(muted)return;
+      try{
+        audioContext??=new (window.AudioContext||window.webkitAudioContext)();
+        if(audioContext.state==='suspended')audioContext.resume();
+        const now=audioContext.currentTime,osc=audioContext.createOscillator(),gain=audioContext.createGain();
+        osc.type=type;osc.frequency.setValueAtTime(freq,now);osc.frequency.exponentialRampToValueAtTime(Math.max(30,endFreq),now+duration);
+        gain.gain.setValueAtTime(volume,now);gain.gain.exponentialRampToValueAtTime(.001,now+duration);
+        osc.connect(gain);gain.connect(audioContext.destination);osc.start(now);osc.stop(now+duration);
+      }catch(_){}
+    }
+    function random(a,b){return a+Math.random()*(b-a)}
+    function spark(x,y,count,color,power=1){for(let i=0;i<count;i++)particles.push({x,y,vx:random(-105,105)*power,vy:random(-130,80)*power,life:random(.25,.65),max:.65,size:Math.random()<.55?3:5,color})}
+    function start(){
+      player={x:PLAYER_X,y:330,vy:0,angle:0};obstacles=[];monsters=[];particles=[];score=0;elapsed=0;spawnClock=.35;spawnCount=0;monsterCount=0;monsterSpawned=false;mode='playing';
+      swordTime=0;swordCooldown=0;shadowCooldown=0;shadowFlash=0;invulnerable=0;
+      overlay.classList.add('hidden');pauseLayer.classList.remove('show');pauseButton.textContent='Ⅱ';syncHud();syncSkills();flap();
+    }
+    function flap(){if(mode!=='playing')return;player.vy=FLAP;player.angle=-.28;spark(player.x-18,player.y+9,5,'#c29bfa',.45);tone(510,.09,'triangle',.035,720)}
+    function castSword(){
+      if(mode!=='playing'||swordCooldown>0)return;
+      swordTime=SWORD_DURATION;swordCooldown=SWORD_COOLDOWN;
+      spark(player.x+15,player.y,28,'#d4a4ff',1.2);tone(330,.22,'sawtooth',.055,900);setTimeout(()=>tone(960,.22,'triangle',.04,490),90);syncSkills();
+    }
+    function useShadow(o){
+      shadowCooldown=SHADOW_COOLDOWN;shadowFlash=.7;invulnerable=SHADOW_DURATION;
+      player.y=o?Math.max(o.top+30,Math.min(o.bottom-30,player.y)):Math.max(24,player.y-32);player.vy=-170;
+      spark(player.x,player.y,24,'#a68bfa',1.15);tone(460,.19,'triangle',.055,180);syncSkills();
+    }
+    function finish(){
+      if(mode!=='playing')return;mode='over';spark(player.x,player.y,30,'#c49aff',1.5);tone(180,.28,'sawtooth',.035,65);syncSkills();
+      document.getElementById('overlayOverline').textContent='THE SHADOW ENDURES';
+      document.getElementById('overlayTitle').textContent='试炼尚未结束';
+      document.getElementById('overlayText').textContent=`本次越过 ${score} 座暗影之塔。${score>=best&&score>0?'你写下了新的试炼纪录！':'重整身法，再向天际出发。'}`;
+      document.getElementById('startButton').textContent='再次试炼　➜';
+      overlay.classList.remove('hidden');
+    }
+    function togglePause(){
+      if(mode==='playing'){mode='paused';pauseLayer.classList.add('show');pauseButton.textContent='▶';syncSkills();}
+      else if(mode==='paused'){mode='playing';pauseLayer.classList.remove('show');pauseButton.textContent='Ⅱ';last=performance.now();syncSkills()}
+    }
+    function action(){if(mode==='ready'||mode==='over')start();else if(mode==='playing')flap();else if(mode==='paused')togglePause()}
+    document.getElementById('startButton').addEventListener('click',e=>{e.stopPropagation();start()});
+    document.getElementById('resumeButton').addEventListener('click',e=>{e.stopPropagation();togglePause()});
+    skillButton.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();castSword()});
+    skillButton.addEventListener('click',e=>{e.stopPropagation();castSword()});
+    area.addEventListener('pointerdown',e=>{if(e.target.closest('button,.skill-dock'))return;e.preventDefault();action()});
+    window.addEventListener('keydown',e=>{
+      if(e.altKey||e.ctrlKey||e.metaKey||e.repeat)return;
+      if(e.code==='Space'&&e.target.closest?.('button'))return;
+      if(['Space','ArrowUp','KeyW'].includes(e.code)){e.preventDefault();if(!e.repeat)action()}
+      else if(e.code==='KeyE'){e.preventDefault();if(!e.repeat)castSword()}
+      else if(e.code==='KeyP')togglePause();
+      else if(e.code==='KeyM'){muted=!muted;try{localStorage.setItem('holyWingMuted',muted?'1':'0')}catch(_){}syncSound()}
+    });
+    pauseButton.addEventListener('click',togglePause);
+    soundButton.addEventListener('click',()=>{muted=!muted;try{localStorage.setItem('holyWingMuted',muted?'1':'0')}catch(_){}syncSound();if(!muted)tone(660,.12,'triangle',.03,880)});
+    document.addEventListener('visibilitychange',()=>{if(document.hidden&&mode==='playing')togglePause()});
+
+
+    function addObstacle(){
+      const top=Math.round(random(145,405));
+      const trap=spawnCount===0?'none':spawnCount%3===1?'orb':spawnCount%3===2?'spikes':'none';
+      obstacles.push({x:W+30,top,bottom:top+GAP,trap,passed:false,seed:Math.random()*Math.PI*2});
+      spawnCount++;
+    }
+    function addMonster(){
+      const type=monsterCount++%2===0?'bat':'eye';
+      monsters.push({x:W+30,baseY:random(185,515),born:elapsed,type,r:type==='bat'?15:14,dead:false});
+    }
+    function monsterY(m){return m.baseY+Math.sin((elapsed-m.born)*(m.type==='bat'?3.8:2.6))*(m.type==='bat'?22:32)}
+    function orbPosition(o){return {x:o.x+OBSTACLE_W/2,y:(o.top+o.bottom)/2+Math.sin(elapsed*2.5+o.seed)*38}}
+    function spikeExtension(o){return Math.max(0,Math.sin(elapsed*3+o.seed))*30}
+    function hitsObstacle(o){
+      const overlapX=player.x+12>o.x+9&&player.x-12<o.x+OBSTACLE_W-9;
+      const extension=o.trap==='spikes'?spikeExtension(o):0;
+      if(overlapX&&(player.y-13<o.top-5+extension||player.y+13>o.bottom+5-extension))return true;
+      if(o.trap==='orb'){
+        const orb=orbPosition(o),dx=player.x-orb.x,dy=player.y-orb.y;
+        if(dx*dx+dy*dy<30*30)return true;
+      }
+      return false;
+    }
+    function update(dt){
+      frameTime+=dt;
+      for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=210*dt;p.life-=dt}
+      particles=particles.filter(p=>p.life>0);
+      if(mode==='ready'){player.y=330+Math.sin(frameTime*2.6)*7;return}
+      if(mode!=='playing')return;
+      elapsed+=dt;spawnClock+=dt;
+      swordTime=Math.max(0,swordTime-dt);swordCooldown=Math.max(0,swordCooldown-dt);
+      shadowCooldown=Math.max(0,shadowCooldown-dt);shadowFlash=Math.max(0,shadowFlash-dt);invulnerable=Math.max(0,invulnerable-dt);syncSkills();
+      const interval=Math.max(1.28,1.62-elapsed*.004);
+      if(!monsterSpawned&&spawnCount>0&&spawnCount%2===1&&spawnClock>=interval*.52){addMonster();monsterSpawned=true}
+      if(spawnClock>=interval){spawnClock=0;monsterSpawned=false;addObstacle()}
+      player.vy+=GRAVITY*dt;player.y+=player.vy*dt;player.angle=Math.min(.75,Math.max(-.28,player.vy/750));
+      if(Math.random()<.48)spark(player.x-25,player.y+8,1,swordTime>0?'#d8a8ff':'#bba4ee',.12);
+      if(player.y-13<0){player.y=13;player.vy=0}
+      if(player.y+16>=FLOOR){player.y=FLOOR-16;finish();return}
+      const speed=Math.min(270,189+elapsed*1.7);
+      for(const o of obstacles){
+        o.x-=speed*dt;
+        if(!o.passed&&o.x+OBSTACLE_W<player.x-10){o.passed=true;score++;if(score>best){best=score;try{localStorage.setItem('holyWingBest',String(best))}catch(_){}}syncHud();spark(player.x+13,player.y,15,'#f8d77e',.7);tone(740,.11,'sine',.055,1050);setTimeout(()=>tone(1000,.13,'sine',.04,1350),75)}
+        if(hitsObstacle(o)){
+          if(swordTime>0||invulnerable>0)continue;
+          if(shadowCooldown===0){useShadow(o);continue}
+          finish();return;
+        }
+      }
+      obstacles=obstacles.filter(o=>o.x>-OBSTACLE_W-20);
+      for(const m of monsters){
+        m.x-=(speed+10)*dt;
+        const y=monsterY(m),dx=player.x-m.x,dy=player.y-y,distanceSquared=dx*dx+dy*dy;
+        if(swordTime>0&&distanceSquared<53*53){m.dead=true;spark(m.x,y,15,m.type==='bat'?'#a786d7':'#f0a7d5',.8);tone(770,.09,'triangle',.025,420);continue}
+        if(distanceSquared<(m.r+12)*(m.r+12)){
+          if(invulnerable>0)continue;
+          if(shadowCooldown===0){m.dead=true;useShadow(null);continue}
+          finish();return;
+        }
+      }
+      monsters=monsters.filter(m=>!m.dead&&m.x>-40);
+    }
+    function rect(x,y,w,h,color){ctx.fillStyle=color;ctx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h))}
+    function polygon(points,color){ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(points[0][0],points[0][1]);for(let i=1;i<points.length;i++)ctx.lineTo(points[i][0],points[i][1]);ctx.closePath();ctx.fill()}
+    function sky(){
+      const g=ctx.createLinearGradient(0,0,0,FLOOR);g.addColorStop(0,'#071326');g.addColorStop(.52,'#243755');g.addColorStop(1,'#547084');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+      const halo=ctx.createRadialGradient(350,217,18,350,217,244);halo.addColorStop(0,'#e8d3a43c');halo.addColorStop(1,'#c9a87700');ctx.fillStyle=halo;ctx.fillRect(80,0,400,490);
+      for(const s of stars){const a=.35+.33*Math.sin(frameTime*2+s.phase);ctx.globalAlpha=a;rect(s.x,s.y,s.s,s.s,'#e9e6d2')}ctx.globalAlpha=1;
+      ctx.fillStyle='#e7d9b7';ctx.beginPath();ctx.arc(352,193,63,0,Math.PI*2);ctx.fill();ctx.fillStyle='#f7e8c9';ctx.beginPath();ctx.arc(352,193,52,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='#f7e7be59';ctx.lineWidth=2;ctx.beginPath();ctx.arc(352,193,79,0,Math.PI*2);ctx.stroke();
+      polygon([[0,447],[83,377],[145,438],[216,366],[300,455],[398,351],[480,427],[480,671],[0,671]],'#243950');
+      polygon([[0,510],[63,451],[133,507],[210,433],[285,514],[357,450],[480,520],[480,671],[0,671]],'#1a2b40');
+      const shift=(frameTime*9)%110;
+      for(let i=-2;i<7;i++){let x=i*110-shift;rect(x+34,452,42,216,'#14263b');rect(x+26,442,58,14,'#14263b');rect(x+43,422,24,25,'#14263b');polygon([[x+43,422],[x+55,393],[x+67,422]],'#14263b');rect(x+50,464,10,24,'#80b7b14b')}
+      const fog=ctx.createLinearGradient(0,485,0,FLOOR);fog.addColorStop(0,'#aac0bb00');fog.addColorStop(1,'#a9c3bf42');ctx.fillStyle=fog;ctx.fillRect(0,485,W,190);
+      for(let j=0;j<3;j++){let x=((j*202-frameTime*(11+j*4))%(W+200)+W+200)%(W+200)-100;ctx.fillStyle='#d4d3c817';ctx.beginPath();ctx.ellipse(x,344+j*82,85,12,0,0,Math.PI*2);ctx.fill()}
+    }
+    function ground(){rect(0,FLOOR,W,H-FLOOR,'#101b2a');rect(0,FLOOR,W,5,'#c1a16e');rect(0,FLOOR+5,W,4,'#655847');for(let i=0;i<28;i++){let x=((i*23-frameTime*24)%W+W)%W;rect(x,FLOOR+15+(i%3)*9,9,3,i%4===0?'#655747':'#2c3b42')}}
+    function towerBody(x,y,h,fromTop,seed){
+      if(h<=0)return;
+      rect(x,y,OBSTACLE_W,h,'#1b2036');rect(x+6,y,9,h,'#303451');rect(x+OBSTACLE_W-13,y,7,h,'#10172b');
+      for(let j=0;j<h/31;j++){const yy=y+j*31+((seed*11)%9);rect(x+17,yy,OBSTACLE_W-35,2,'#30334b');rect(x+14+((j*29)%43),yy+10,9,3,'#493d51')}
+      for(let j=0;j<h/78;j++){const yy=y+31+j*78;rect(x+31,yy,22,27,'#0c1728');rect(x+35,yy+4,14,19,'#772f60');rect(x+40,yy+7,4,13,'#ec76a1');rect(x+27,yy+30,30,3,'#786283')}
+      if(fromTop){rect(x-11,y+h-30,OBSTACLE_W+22,27,'#2e2a43');rect(x-15,y+h-30,OBSTACLE_W+30,6,'#8d6980');rect(x-11,y+h-5,OBSTACLE_W+22,9,'#4c3952');for(let k=0;k<5;k++)rect(x-10+k*21,y+h-48,13,18,'#352f48');polygon([[x+22,y+h+4],[x+34,y+h+15],[x+40,y+h+4]],'#a85f7b');polygon([[x+52,y+h+4],[x+58,y+h+14],[x+66,y+h+4]],'#a85f7b')}
+      else{rect(x-11,y,OBSTACLE_W+22,27,'#302b45');rect(x-15,y+23,OBSTACLE_W+30,6,'#8d6980');rect(x-11,y-5,OBSTACLE_W+22,9,'#4c3952');for(let k=0;k<5;k++)rect(x-10+k*21,y+29,13,18,'#352f48');polygon([[x+22,y-5],[x+34,y-16],[x+40,y-5]],'#a85f7b');polygon([[x+52,y-5],[x+58,y-15],[x+66,y-5]],'#a85f7b')}
+      const runeY=fromTop?y+h-84:y+65;ctx.fillStyle='#d563a7';ctx.font='bold 25px Georgia';ctx.textAlign='center';ctx.fillText('◇',x+OBSTACLE_W/2,runeY);ctx.textAlign='start';
+    }
+    function drawOrb(o){
+      const {x,y}=orbPosition(o),pulse=.65+.35*Math.sin(elapsed*6+o.seed);
+      ctx.save();ctx.globalAlpha=.18*pulse;ctx.fillStyle='#dc74ff';ctx.beginPath();ctx.arc(x,y,33,0,Math.PI*2);ctx.fill();ctx.restore();
+      ctx.save();ctx.translate(Math.round(x),Math.round(y));ctx.rotate(elapsed*2.7+o.seed);
+      rect(-3,-27,6,54,'#7b4b9d');rect(-27,-3,54,6,'#7b4b9d');
+      polygon([[-8,-8],[0,-19],[8,-8],[19,0],[8,8],[0,19],[-8,8],[-19,0]],'#3d285c');
+      polygon([[-7,-7],[0,-14],[7,-7],[14,0],[7,7],[0,14],[-7,7],[-14,0]],'#b763d5');
+      rect(-5,-5,10,10,'#f2c5ff');rect(-2,-2,4,4,'#fff2ff');ctx.restore();
+      for(let i=0;i<3;i++){const a=elapsed*2+i*2.1+o.seed;rect(x+Math.cos(a)*30,y+Math.sin(a)*30,3,3,'#e2a8f2')}
+    }
+    function drawSpikes(o){
+      const ext=spikeExtension(o),glow=.35+ext/48;
+      rect(o.x+3,o.top,OBSTACLE_W-6,6,'#5f386d');rect(o.x+3,o.bottom-6,OBSTACLE_W-6,6,'#5f386d');
+      ctx.save();ctx.globalAlpha=glow;
+      rect(o.x+5,o.top+7,OBSTACLE_W-10,3,'#e183f1');rect(o.x+5,o.bottom-10,OBSTACLE_W-10,3,'#e183f1');
+      ctx.restore();
+      if(ext<1)return;
+      for(let i=0;i<5;i++){
+        const sx=o.x+5+i*15;
+        polygon([[sx,o.top+3],[sx+11,o.top+3],[sx+5.5,o.top+ext]],'#c77aeb');
+        polygon([[sx,o.bottom-3],[sx+11,o.bottom-3],[sx+5.5,o.bottom-ext]],'#c77aeb');
+        rect(sx+4,o.top+5,3,Math.max(2,ext*.55),'#f6cbff');
+        rect(sx+4,o.bottom-5-ext*.55,3,Math.max(2,ext*.55),'#f6cbff');
+      }
+    }
+    function drawObstacles(){
+      for(const o of obstacles){
+        towerBody(o.x,0,o.top,true,o.seed);towerBody(o.x,o.bottom,FLOOR-o.bottom,false,o.seed);
+        if(o.trap==='orb')drawOrb(o);
+        if(o.trap==='spikes')drawSpikes(o);
+        ctx.globalAlpha=.16+.09*Math.sin(frameTime*3+o.seed);ctx.strokeStyle='#f5a1bc';ctx.lineWidth=1;
+        ctx.beginPath();ctx.moveTo(o.x+42,o.top+17);ctx.lineTo(o.x+42,o.top+43);ctx.moveTo(o.x+42,o.bottom-17);ctx.lineTo(o.x+42,o.bottom-43);ctx.stroke();ctx.globalAlpha=1;
+      }
+    }
+    function drawMonsters(){
+      for(const m of monsters){
+        const y=monsterY(m),wingUp=Math.sin((elapsed-m.born)*15)>0;
+        ctx.save();ctx.translate(Math.round(m.x),Math.round(y));
+        if(m.type==='bat'){
+          polygon(wingUp?[[-5,0],[-16,-10],[-27,-13],[-21,2],[-10,6]]:[[-5,0],[-18,4],[-27,10],[-17,12],[-8,7]],'#342343');
+          polygon(wingUp?[[5,0],[16,-10],[27,-13],[21,2],[10,6]]:[[5,0],[18,4],[27,10],[17,12],[8,7]],'#342343');
+          rect(-9,-9,18,19,'#5a3b70');rect(-5,-12,10,5,'#74508d');
+          polygon([[-9,-9],[-7,-18],[-2,-10]],'#7b5794');polygon([[2,-10],[7,-18],[9,-9]],'#7b5794');
+          rect(-6,-3,4,3,'#fa83b4');rect(3,-3,4,3,'#fa83b4');rect(-3,7,6,3,'#30213f');
+        }else{
+          ctx.globalAlpha=.23;ctx.fillStyle='#ff8bc6';ctx.beginPath();ctx.arc(0,0,25,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+          polygon([[-17,-8],[-22,-15],[-16,-19],[-9,-10]],'#7d3b77');polygon([[17,-8],[22,-15],[16,-19],[9,-10]],'#7d3b77');
+          rect(-12,-12,24,24,'#5b315f');rect(-9,-9,18,18,'#a95d9a');rect(-6,-5,12,10,'#f0b3d5');
+          rect(-2,-4,5,8,'#64225d');rect(0,-3,2,5,'#fff3f6');rect(-11,11,5,6,'#65406d');rect(6,11,5,6,'#65406d');
+        }
+        ctx.restore();
+      }
+    }
+    function drawCaiEr(x,y,alpha=1){
+      const wingUp=Math.sin(frameTime*24)>0;
+      ctx.save();ctx.globalAlpha=alpha;ctx.translate(Math.round(x),Math.round(y));ctx.rotate(player.angle*.24);
+      // Shadow wing and long lilac hair establish the chibi silhouette.
+      polygon(wingUp?[[-7,-1],[-31,-22],[-43,-24],[-29,0],[-19,8]]:[[-7,1],[-35,10],[-43,19],[-21,16]],'#31214d');
+      rect(-34,wingUp?-18:10,17,6,'#6b4b9e');rect(-41,wingUp?-22:15,10,5,'#9a73c4');
+      polygon([[-12,-18],[-19,-8],[-22,14],[-17,24],[-9,16]],'#8b73b3');
+      rect(-15,-23,27,21,'#9e86c7');rect(-13,-25,23,6,'#c5a8e4');rect(-18,-15,8,24,'#ae96d7');
+      // Dark assassin outfit, pale face and violet eyes.
+      polygon([[-10,3],[10,3],[16,24],[-17,22]],'#202038');rect(-8,1,17,16,'#302746');rect(-4,4,8,13,'#746394');
+      rect(-10,-18,20,17,'#f1d8d5');rect(-11,-18,5,14,'#a486c6');rect(-12,-23,26,7,'#aa8dce');
+      rect(-8,-17,14,5,'#bd9cdd');rect(-3,-13,15,5,'#b59bd8');rect(8,-14,5,11,'#9879bb');
+      rect(4,-9,4,4,'#392649');rect(5,-9,2,2,'#d3abf7');rect(9,-3,3,2,'#e9b8c1');
+      rect(-5,14,6,9,'#342b49');rect(5,14,6,9,'#342b49');rect(-7,21,9,4,'#8c729c');rect(5,21,9,4,'#8c729c');
+      rect(9,2,8,5,'#ead1d1');rect(13,5,5,5,'#665477');
+      // A straight, silver-violet Reincarnation Sword replaces the curved scythe.
+      polygon([[15,6],[21,10],[11,20],[7,16]],'#5b3e75');
+      polygon([[12,0],[26,10],[29,6],[15,-4]],'#ae83cb');
+      polygon([[20,1],[37,-29],[43,-34],[41,-22],[25,5]],'#c9a2e7');
+      polygon([[23,0],[39,-28],[41,-29],[25,4]],'#faf0ff');
+      rect(9,17,5,4,'#e4c8f5');
+      ctx.restore();
+    }
+    function drawPlayer(){
+      const x=player.x,y=player.y;
+      if(swordTime>0){
+        drawCaiEr(x-30,y+5,.22);drawCaiEr(x-16,y+2,.38);
+        ctx.save();ctx.strokeStyle='#dcb0ff';ctx.lineWidth=6;ctx.shadowColor='#bb6bff';ctx.shadowBlur=18;ctx.beginPath();ctx.arc(x+12,y,41,-1.45,1.17);ctx.stroke();ctx.restore();
+      }else if(shadowFlash>0){drawCaiEr(x-26,y+9,shadowFlash*.6);drawCaiEr(x+12,y-8,shadowFlash*.35)}
+      ctx.save();ctx.globalAlpha=swordTime>0?.26:.14;ctx.fillStyle=swordTime>0?'#d8a5ff':'#b7a4e6';ctx.beginPath();ctx.arc(x,y,30,0,Math.PI*2);ctx.fill();ctx.restore();
+      drawCaiEr(x,y,1);
+    }
+    function drawParticles(){for(const p of particles){ctx.globalAlpha=Math.max(0,p.life/p.max);rect(p.x,p.y,p.size,p.size,p.color)}ctx.globalAlpha=1}
+    function draw(){sky();drawObstacles();drawMonsters();drawParticles();drawPlayer();ground();if(mode==='over'){ctx.fillStyle='#ad85d145';ctx.fillRect(0,0,W,H)}}
+    function loop(now){const dt=Math.min(.032,(now-last)/1000||0);last=now;update(dt);draw();requestAnimationFrame(loop)}
+    // Mirror the game's existing controls in browsers that support WebMCP.
+    const modelContext=document.modelContext;
+    if(modelContext?.registerTool){
+      const lifecycle=new AbortController();
+      const state=()=>({mode,score,best,soundEnabled:!muted,swordActive:swordTime>0,swordSeconds:Math.round(swordTime*100)/100,swordCooldown:Math.round(swordCooldown*100)/100,shadowCooldown:Math.round(shadowCooldown*100)/100});
+      const validate=input=>{if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).length)throw new Error('Expected an empty object.')};
+      const definitions=[
+        {name:'get_trial_state',title:'读取试炼状态',description:'Read the current trial score, best score, mode and skill cooldowns.',readOnly:true,execute:()=>{}},
+        {name:'start_trial',title:'开始试炼',description:'Start or restart the trial, resetting the current score, monsters, traps and cooldowns.',execute:start},
+        {name:'jump_cai_er',title:'采儿跃升',description:'Jump once, like tapping the game. Starts a run if ready or finished and resumes if paused.',execute:action},
+        {name:'cast_reincarnation_sword',title:'释放轮回之剑',description:'Cast the same 1.65-second skill as E or the skill button. Requires active play and a completed 9-second cooldown.',execute:()=>{if(mode!=='playing'||swordCooldown>0)throw new Error('Skill is unavailable.');castSword()}},
+        {name:'toggle_trial_pause',title:'暂停或继续试炼',description:'Toggle between playing and paused, like the P key or pause button. Requires a started trial.',execute:()=>{if(!['playing','paused'].includes(mode))throw new Error('Start the trial first.');togglePause()}}
+      ];
+      for(const definition of definitions){
+        try{Promise.resolve(modelContext.registerTool({name:definition.name,title:definition.title,description:definition.description,inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:!!definition.readOnly,untrustedContentHint:false},execute(input){validate(input);definition.execute();draw();return state()}},{signal:lifecycle.signal})).catch(()=>{})}catch(_){}
+      }
+      window.addEventListener('pagehide',()=>lifecycle.abort(),{once:true});
+    }
+    requestAnimationFrame(loop);
+  })();
+  </script>
+</body>
+</html>
