@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
 import {handle} from '../dist/server/index.js';
 const origin='https://game.example',secret='test-only-secret-do-not-use-in-production';
 const start=1800000000;
@@ -57,4 +58,75 @@ test('nickname is data, leaving removes only owned tab, missing runtime config f
   await handle(req('/api/presence/leave',player,{visitor:'a'.repeat(32),session:'b'.repeat(32)}),env,start);
   snapshot=await (await handle(req('/api/admin/online',owner),env,start)).json();assert.equal(snapshot.online,0);
   assert.equal((await handle(req('/admin/'),{...env,ADMIN_TOKEN:''},start)).status,503);
+});
+const github='https://chenfenghrf.github.io';
+const remoteReq=(path,token='',data=null)=>new Request(origin+path,{method:data===null?'GET':'POST',headers:{Origin:github,'Sec-Fetch-Site':'cross-site',...(token?{Authorization:'Bearer '+token}:{}),...(data===null?{}:{'Content-Type':'application/json'})},...(data===null?{}:{body:JSON.stringify(data)})});
+test('GitHub CORS permits only visitor endpoints and origin-bound credentials, never admin reads or logout',async()=>{
+  const {env}=create(),owner=await login(env);
+  const preflight=(path,method='POST',headers='authorization,content-type',source=github)=>new Request(origin+path,{method:'OPTIONS',headers:{Origin:source,'Access-Control-Request-Method':method,'Access-Control-Request-Headers':headers}});
+  const pre=await handle(preflight('/api/presence/heartbeat'),env,start);
+  assert.equal(pre.status,204);assert.equal(pre.headers.get('Access-Control-Allow-Origin'),github);assert.equal(pre.headers.get('Access-Control-Allow-Credentials'),null);
+  for(const r of [preflight('/api/admin/online','GET'),preflight('/api/presence/heartbeat','POST','cookie'),preflight('/api/session','POST'),preflight('/api/session','GET','','https://evil.example')])assert.equal((await handle(r,env,start)).status,403);
+  const session=await handle(remoteReq('/api/session'),env,start),info=await session.json();
+  assert.equal(session.headers.get('Access-Control-Allow-Origin'),github);assert.equal(session.headers.get('Set-Cookie'),null);assert.equal(info.admin,false);
+  const token=info.player_token;
+  assert.equal((await (await handle(remoteReq('/api/session',token),env,start)).json()).player_token,token);
+  assert.equal((await handle(remoteReq('/api/presence/heartbeat',token,payload()),env,start)).status,200);
+  assert.equal((await handle(remoteReq('/api/presence/heartbeat',token+'x',payload()),env,start)).status,403);
+  assert.equal((await handle(remoteReq('/api/presence/heartbeat',token,payload()),env,start+86400)).status,403);
+  // A cookie and a cross-origin visitor token are not interchangeable.
+  const localCookie=await setup(env);
+  assert.equal((await handle(remoteReq('/api/presence/heartbeat',localCookie.split('=')[1],payload()),env,start)).status,403);
+  assert.equal((await handle(req('/api/presence/heartbeat','trial_player='+token,payload()),env,start)).status,403);
+  for(const path of ['/api/admin/online','/admin/','/admin.js']){
+    const r=remoteReq(path,token);r.headers.set('Cookie',owner);
+    const denied=await handle(r,env,start);assert.equal(denied.status,403);assert.equal(denied.headers.get('Access-Control-Allow-Origin'),null);
+  }
+  const logout=remoteReq('/api/admin/logout','',{});logout.headers.set('Cookie',owner);
+  assert.equal((await handle(logout,env,start)).status,403);
+  assert.equal((await handle(req('/api/admin/online',owner),env,start)).status,200);
+  assert.equal((await handle(remoteReq('/api/presence/leave',token,{visitor:'a'.repeat(32),session:'b'.repeat(32)}),env,start)).status,200);
+});
+
+function bootGithub(env,storage=new Map(),locks={request:(_,fn)=>fn()},search='',clock){
+  const elements=new Map(),tools=new Map(),events={},requests=[],redirects=[];
+  const ctx=new Proxy({}, {get:(_,key)=>key.includes('Gradient')?()=>({addColorStop(){}}):()=>{},set:()=>true});
+  function el(id){if(!elements.has(id))elements.set(id,{hidden:false,dataset:{},listeners:{},focus(){},classList:{add(){},remove(){}},getContext:()=>ctx,setAttribute(){},addEventListener(type,fn){this.listeners[type]=fn}});return elements.get(id)}
+  const cards=['long','caier'].map(id=>{const c=el('card-'+id);c.dataset.hero=id;return c});
+  const location={origin:github,protocol:'https:',pathname:'/holy-wing-trial/',search,hash:'',replace:url=>redirects.push(url)};
+  const window={location,history:{replaceState:(_,__,url)=>requests.push({history:url})},crypto,navigator:{locks},addEventListener:(type,fn)=>events[type]=fn,setTimeout,clearTimeout,setInterval:()=>0,fetch:async(url,options)=>{
+    assert.equal(new URL(url).origin,'https://holy-wing-trial.luz22stantonqvy.chatgpt.site');
+    assert.equal(options.credentials,'omit');requests.push({url,options});
+    const r=new Request(url,{...options,headers:{...options.headers,Origin:github,'Sec-Fetch-Site':'cross-site'}});
+    const response=await handle(r,env,clock?.now);assert.equal(response.headers.get('Access-Control-Allow-Origin'),github);return response;
+  }};
+  const sandbox={window,document:{getElementById:el,querySelectorAll:()=>cards,body:{dataset:{}},addEventListener(){},modelContext:{registerTool:t=>tools.set(t.name,t)}},localStorage:{getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},AbortController,performance:{now:()=>0},setTimeout,requestAnimationFrame(){},URL,URLSearchParams};
+  const script=readFileSync('src/game.html','utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
+  vm.runInNewContext(script,sandbox);
+  return {elements,tools,events,requests,redirects};
+}
+const until=async predicate=>{for(let i=0;i<100;i++){if(await predicate())return;await new Promise(r=>setTimeout(r,10))}assert.fail('Timed out waiting for client state')};
+test('actual GitHub game client reports two tabs as one visitor, changes character and leaves cleanly',async()=>{
+  const {env}=create(),storage=new Map();let queue=Promise.resolve();
+  const locks={request:(_,fn)=>{const next=queue.then(fn);queue=next.catch(()=>{});return next}};
+  // The D1 test adapter uses a single synchronous connection; serialize simulated network requests.
+  let network=Promise.resolve();const originalBatch=env.DB.batch;
+  env.DB.batch=stmts=>{const next=network.then(()=>originalBatch(stmts));network=next.catch(()=>{});return next};
+  const clock={now:Math.floor(Date.now()/1000)};
+  const a=bootGithub(env,storage,locks,'',clock),b=bootGithub(env,storage,locks,'',clock);
+  await until(()=>[a,b].every(c=>c.elements.get('presenceStatus').textContent==='在线状态已同步'));
+  assert.deepEqual(a.redirects,[]);assert.equal(a.elements.get('adminLink').hidden,true);
+  const now=Math.floor(Date.now()/1000),loginResponse=await handle(req('/?token='+secret),env,now),owner=pair(loginResponse);
+  const snapshot=async()=>await (await handle(req('/api/admin/online',owner),env,clock.now)).json();
+  let state=await snapshot();assert.equal(state.online,1);assert.equal(state.players[0].tabs,2);
+  clock.now+=1;a.tools.get('select_trial_hero').execute({hero:'caier'});
+  a.elements.get('playerName').value='GitHub玩家';a.elements.get('playerName').listeners.input();
+  await until(async()=>{const s=await snapshot();return s.players.some(p=>p.name==='GitHub玩家'&&p.hero==='caier')});
+  a.events.pagehide();await until(async()=>(await snapshot()).players[0]?.tabs===1);
+  b.events.pagehide();await until(async()=>(await snapshot()).online===0);
+});
+test('only an explicit token in the GitHub URL redirects to administrator login',()=>{
+  const {env}=create(),a=bootGithub(env,new Map(),undefined,'?token=example-secret');
+  assert.equal(a.redirects.length,1);assert.equal(new URL(a.redirects[0]).searchParams.get('token'),'example-secret');
+  assert.equal(a.requests[0].history,'/holy-wing-trial/');assert.equal(a.requests.filter(r=>r.url).length,0);
 });

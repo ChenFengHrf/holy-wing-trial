@@ -1,4 +1,6 @@
 const TTL=90, ADMIN_TTL=28800, PLAYER_TTL=86400;
+const FRONTEND_ORIGIN='https://chenfenghrf.github.io';
+const publicRoutes=new Set(['/api/session','/api/presence/heartbeat','/api/presence/leave']);
 const encoder=new TextEncoder();
 const validId=value=>typeof value==='string'&&/^(?:[a-f\d]{32}|[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12})$/i.test(value);
 const heroNames={long:'龙皓晨',caier:'圣采儿'};
@@ -33,11 +35,12 @@ async function admin(request,env,now){
   return !!row&&await equal(row.key_hash,await digest(env.ADMIN_TOKEN));
 }
 async function player(request,env,now){
-  const value=cookie(request,'trial_player');
+  const remote=request.headers.get('Origin')===FRONTEND_ORIGIN;
+  const value=remote?(request.headers.get('Authorization')||'').replace(/^Bearer /,''):cookie(request,'trial_player');
   if(value.length>160)return null;
   const [id,end,mac,...extra]=value.split('.');
   if(extra.length||!/^[a-f0-9]{32}$/.test(id||'')||!/^\d{10,13}$/.test(end||'')||!/^[a-f0-9]{64}$/.test(mac||'')||Number(end)<=now)return null;
-  return await equal(mac,await signature(env.ADMIN_TOKEN,`${id}.${end}`))?id:null;
+  return await equal(mac,await signature(env.ADMIN_TOKEN,`${id}.${end}${remote?'|'+FRONTEND_ORIGIN:''}`))?id:null;
 }
 async function login(request,env,url,now){
   const tokens=url.searchParams.getAll('token');
@@ -78,7 +81,7 @@ async function readPayload(request){
   return payload;
 }
 async function presence(request,env,path,now){
-  // A server-signed visitor cookie owns the records; submitted visitor IDs are never trusted.
+  // A signed visitor credential owns records; submitted visitor IDs are never trusted.
   const visitor=await player(request,env,now);
   if(!visitor)return reply({error:'请刷新游戏页面后重试'},403);
   let p;
@@ -106,17 +109,18 @@ async function presence(request,env,path,now){
   }
   return reply({ok:true,admin:await admin(request,env,now)});
 }
-export async function handle(request,env,now=Math.floor(Date.now()/1000)){
+async function route(request,env,now){
   const url=new URL(request.url),path=url.pathname,method=request.method;
   if(!['GET','HEAD','POST'].includes(method))return reply({error:'请求方式无效'},405);
   if(!env.ADMIN_TOKEN||env.ADMIN_TOKEN.length<32||!env.DB||!env.SITE_ORIGIN)return reply({error:'服务尚未准备好'},503);
   if(method==='HEAD'){
-    const response=await handle(new Request(request.url,{headers:request.headers}),env,now);
+    const response=await route(new Request(request.url,{headers:request.headers}),env,now);
     return new Response(null,{status:response.status,headers:response.headers});
   }
   if(method==='POST'){
     const origin=request.headers.get('Origin');
-    if((origin&&origin!==env.SITE_ORIGIN)||request.headers.get('Sec-Fetch-Site')==='cross-site')return reply({error:'请求来源无效'},403);
+    const remotePresence=origin===FRONTEND_ORIGIN&&path.startsWith('/api/presence/');
+    if(!remotePresence&&((origin&&origin!==env.SITE_ORIGIN)||request.headers.get('Sec-Fetch-Site')==='cross-site'))return reply({error:'请求来源无效'},403);
     if(path==='/api/admin/logout'){
       await statement(env,'DELETE FROM admin_sessions WHERE hash = ?',await digest(cookie(request,'trial_admin'))).run();
       return reply({ok:true},200,undefined,{'Set-Cookie':cookieHeader('trial_admin','',0,env)});
@@ -127,6 +131,15 @@ export async function handle(request,env,now=Math.floor(Date.now()/1000)){
   if(['/','/index.html','/admin','/admin/'].includes(path)&&url.searchParams.has('token'))return login(request,env,url,now);
   if(path==='/'||path==='/index.html')return reply(GAME,200,'text/html; charset=utf-8',{'Content-Security-Policy':policy(`'self' 'sha256-${GAME_HASH}'`)});
   if(path==='/api/session'){
+    if(request.headers.get('Origin')===FRONTEND_ORIGIN){
+      // GitHub Pages uses an origin-bound visitor token, never third-party cookies or admin credentials.
+      let token=(request.headers.get('Authorization')||'').replace(/^Bearer /,'');
+      if(!await player(request,env,now)){
+        const value=`${randomToken().slice(0,32)}.${now+PLAYER_TTL}`;
+        token=`${value}.${await signature(env.ADMIN_TOKEN,value+'|'+FRONTEND_ORIGIN)}`;
+      }
+      return reply({presence:true,admin:false,player_token:token,expires_at:Number(token.split('.')[1])});
+    }
     const extras={};
     if(!await player(request,env,now)){
       const id=randomToken().slice(0,32),value=`${id}.${now+PLAYER_TTL}`;
@@ -140,6 +153,20 @@ export async function handle(request,env,now=Math.floor(Date.now()/1000)){
     return path==='/admin.js'?reply(ADMIN_JS,200,'text/javascript; charset=utf-8'):reply(ADMIN,200,'text/html; charset=utf-8');
   }
   return reply({error:'页面不存在'},404);
+}
+export async function handle(request,env,now=Math.floor(Date.now()/1000)){
+  const origin=request.headers.get('Origin'),path=new URL(request.url).pathname;
+  const remote=origin===FRONTEND_ORIGIN&&publicRoutes.has(path);
+  if(origin&&origin!==env.SITE_ORIGIN&&!remote)return reply({error:'请求来源无效'},403);
+  if(request.method==='OPTIONS'){
+    const method=request.headers.get('Access-Control-Request-Method');
+    const headers=(request.headers.get('Access-Control-Request-Headers')||'').toLowerCase().split(',').map(s=>s.trim()).filter(Boolean);
+    if(!remote||method!==(path==='/api/session'?'GET':'POST')||headers.some(h=>!['authorization','content-type'].includes(h)))return reply({error:'请求来源无效'},403);
+    return new Response(null,{status:204,headers:{'Access-Control-Allow-Origin':FRONTEND_ORIGIN,'Access-Control-Allow-Methods':method,'Access-Control-Allow-Headers':'Authorization, Content-Type','Access-Control-Max-Age':'600','Vary':'Origin'}});
+  }
+  const response=await route(request,env,now);
+  if(remote){response.headers.set('Access-Control-Allow-Origin',FRONTEND_ORIGIN);response.headers.set('Vary','Origin')}
+  return response;
 }
 export default {async fetch(request,env){
   try{return await handle(request,env)}

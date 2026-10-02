@@ -7,8 +7,10 @@ key=Path(sys.argv[2]).read_text().strip() if len(sys.argv)>2 else json.loads(Pat
 def client():
     return urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 
-def request(c,path,data=None):
-    r=urllib.request.Request(base+path,data=None if data is None else json.dumps(data).encode(),headers={} if data is None else {'Origin':base,'Content-Type':'application/json'})
+def request(c,path,data=None,headers=None,method=None):
+    merged={} if data is None else {'Origin':base,'Content-Type':'application/json'}
+    merged.update(headers or {})
+    r=urllib.request.Request(base+path,data=None if data is None else json.dumps(data).encode(),headers=merged,method=method)
     try:
         with c.open(r,timeout=20) as out:return out.status,out.read(),out.headers
     except urllib.error.HTTPError as error:return error.code,error.read(),error.headers
@@ -38,6 +40,25 @@ assert request(guest,'/api/admin/online')[0]==403
 for c in [guest,guest2]:assert request(c,'/api/presence/leave',{'visitor':visitor,'session':session})[0]==200
 body=request(owner,'/api/admin/online')[1]
 assert all(x['name'] not in [p['name'],p2['name']] for x in json.loads(body)['players'])
+github='https://chenfenghrf.github.io'
+remote=client()
+cross={'Origin':github,'Sec-Fetch-Site':'cross-site'}
+status,_,headers=request(remote,'/api/presence/heartbeat',headers=cross|{'Access-Control-Request-Method':'POST','Access-Control-Request-Headers':'authorization,content-type'},method='OPTIONS')
+assert status==204 and headers.get('Access-Control-Allow-Origin')==github
+assert not headers.get('Access-Control-Allow-Credentials')
+status,body,headers=request(remote,'/api/session',headers=cross)
+assert status==200 and not headers.get('Set-Cookie')
+cross=cross|{'Authorization':'Bearer '+json.loads(body)['player_token']}
+remote_player=p|{'name':'GitHub发布验证'}
+try:
+    status,_,headers=request(remote,'/api/presence/heartbeat',remote_player,cross)
+    assert status==200 and headers.get('Access-Control-Allow-Origin')==github
+    status,body,_=request(owner,'/api/admin/online')
+    assert status==200 and any(x['name']==remote_player['name'] for x in json.loads(body)['players'])
+    assert request(remote,'/api/admin/online',headers=cross)[0]==403
+    assert request(remote,'/api/presence/heartbeat',remote_player,cross|{'Origin':'https://invalid.example'})[0]==403
+finally:
+    assert request(remote,'/api/presence/leave',{'visitor':visitor,'session':session},cross)[0]==200
 assert request(owner,'/api/admin/logout',{})[0]==200
 assert request(owner,'/api/admin/online')[0]==403
-print(json.dumps({'passed':True,'checks':['anonymous denied','owner token login','protected dashboard','signed guest sessions','two independent players','status and scores','leave cleanup','logout revocation']},ensure_ascii=False))
+print(json.dumps({'passed':True,'checks':['anonymous denied','owner token login','protected dashboard','signed guest sessions','two independent players','status and scores','GitHub CORS preflight','cookie-free GitHub heartbeat','GitHub visitor cannot read admin','unapproved origin rejected','leave cleanup','logout revocation']},ensure_ascii=False))

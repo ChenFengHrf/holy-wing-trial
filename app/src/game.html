@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f5d582">
+  <meta name="referrer" content="no-referrer">
   <meta name="description" content="选择龙皓晨或圣采儿，进入各自的圣光与月夜场景，开启神印王座同人像素飞行试炼。">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23f5d582'/%3E%3Cpath d='M16 4l3 9 9 3-9 3-3 9-3-9-9-3 9-3z' fill='%23754b1e'/%3E%3C/svg%3E">
   <title>神印 · 双境试炼</title>
@@ -92,6 +93,13 @@
   <script>
   (() => {
     'use strict';
+    const apiOrigin=window.location?.origin==='https://chenfenghrf.github.io'?'https://holy-wing-trial.luz22stantonqvy.chatgpt.site':'';
+    if(apiOrigin&&new URLSearchParams(window.location.search).has('token')){
+      const target=new URL('/',apiOrigin),query=new URLSearchParams(window.location.search);
+      for(const token of query.getAll('token'))target.searchParams.append('token',token);
+      query.delete('token');window.history.replaceState(null,'',window.location.pathname+(query.size?'?'+query:'')+window.location.hash);
+      window.location.replace(target.href);return;
+    }
     const canvas=document.getElementById('game');let ctx=canvas.getContext('2d');
     const area=document.getElementById('playArea'),overlay=document.getElementById('overlay'),pauseLayer=document.getElementById('pauseLayer');
     const scoreEl=document.getElementById('score'),bestHud=document.getElementById('bestHud'),bestSide=document.getElementById('bestSide');
@@ -551,7 +559,7 @@
       }
       window.addEventListener('pagehide',()=>lifecycle.abort(),{once:true});
     }
-    // A local server tracks online players; the standalone game works without it.
+    // GitHub Pages connects to the presence service; local hosting uses its own server.
     (()=>{
       const nameInput=$('playerName'),status=$('presenceStatus'),adminLink=$('adminLink');
       const cleanName=value=>String(value||'').replace(/[\x00-\x1f\x7f]/g,'').slice(0,20);
@@ -562,11 +570,29 @@
       let visitor;
       try{visitor=localStorage.getItem('shenyinVisitor');if(!/^(?:[a-f\d]{32}|[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12})$/i.test(visitor||'')){visitor=makeId();localStorage.setItem('shenyinVisitor',visitor)}}catch(_){visitor=makeId()}
       const session=makeId();let connected=false,unavailable=false,leaving=false,timer=0,pending=false,dirty=false;
+      let playerToken='';
+      const credentialKey='shenyinOnlinePlayer';
+      function readCredential(){
+        try{const saved=JSON.parse(localStorage.getItem(credentialKey));if(saved&&saved.expires_at>Date.now()/1000&&typeof saved.player_token==='string')playerToken=saved.player_token}catch(_){}
+      }
+      async function connect(){
+        if(apiOrigin)readCredential();
+        const probe=await request('/api/session');
+        if(probe.status===404&&!apiOrigin){unavailable=true;status.textContent='单机模式';return}
+        if(!probe.ok)throw new Error();
+        const info=await probe.json();
+        if(apiOrigin){
+          if(typeof info.player_token!=='string'||!info.expires_at)throw new Error();
+          playerToken=info.player_token;
+          try{localStorage.setItem(credentialKey,JSON.stringify({player_token:playerToken,expires_at:info.expires_at}))}catch(_){}
+        }
+        connected=info.presence===true;displayRole(info.admin);
+      }
       const displayRole=admin=>{adminLink.hidden=admin!==true};
       const payload=()=>({visitor,session,name:nickname.trim(),hero:hero.id,mode:document.hidden?'away':mode,score});
       const request=async(url,options={})=>{
         const controller=new AbortController(),timeout=window.setTimeout(()=>controller.abort(),5000);
-        try{return await window.fetch(url,{cache:'no-store',...options,signal:controller.signal})}
+        try{return await window.fetch(apiOrigin+url,{cache:'no-store',...options,credentials:apiOrigin?'omit':'same-origin',headers:{...options.headers,...(apiOrigin&&playerToken?{Authorization:'Bearer '+playerToken}:{})},signal:controller.signal})}
         finally{window.clearTimeout(timeout)}
       };
       async function heartbeat(){
@@ -575,15 +601,13 @@
         pending=true;
         try{
           if(!connected){
-            const probe=await request('/api/session');
-            if(probe.status===404){unavailable=true;status.textContent='单机模式';return}
-            if(!probe.ok)throw new Error();
-            const info=await probe.json();connected=info.presence===true;displayRole(info.admin);
-            if(!connected){unavailable=true;return}
+            if(apiOrigin&&window.navigator?.locks)await window.navigator.locks.request(credentialKey,connect);
+            else await connect();
+            if(!connected)return;
           }
           if(leaving)return;
           const response=await request('/api/presence/heartbeat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload()),keepalive:true});
-          if(response.status===403)connected=false;
+          if(response.status===403){connected=false;playerToken='';try{localStorage.removeItem(credentialKey)}catch(_){}}
           if(!response.ok)throw new Error();
           const info=await response.json();displayRole(info.admin);status.textContent='在线状态已同步';
         }catch(_){status.textContent='在线状态暂未同步，游戏可继续';displayRole(false)}
@@ -599,7 +623,11 @@
       if(!['http:','https:'].includes(window.location?.protocol)||typeof window.fetch!=='function'){unavailable=true;presenceUpdate=()=>{};return}
       function leave(){
         leaving=true;window.clearTimeout(timer);
-        if(connected)try{window.navigator.sendBeacon('/api/presence/leave',JSON.stringify({visitor,session}))}catch(_){}
+        if(connected)try{
+          const body=JSON.stringify({visitor,session});
+          if(apiOrigin)window.fetch(apiOrigin+'/api/presence/leave',{method:'POST',credentials:'omit',headers:{'Content-Type':'application/json',Authorization:'Bearer '+playerToken},body,keepalive:true}).catch(()=>{});
+          else window.navigator.sendBeacon('/api/presence/leave',body);
+        }catch(_){}
       }
       window.addEventListener('pagehide',leave);
       window.addEventListener('pageshow',()=>{leaving=false;heartbeat()});
@@ -609,7 +637,7 @@
 
     requestAnimationFrame(loop);
   })();
-  
+
   </script>
 </body>
 </html>

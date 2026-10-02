@@ -47,13 +47,13 @@
     }catch(error){
       $('panel').classList.add('stale');$('sync').dataset.state='error';$('sync').textContent=expired?'登录已失效':'连接中断 · 等待重连';
       $('notice').hidden=false;$('notice').textContent=expired?error.message:'暂时无法更新在线状态，显示的是上次结果；恢复连接后会自动刷新。';
-      if(!snapshot&&!expired){$('emptyTitle').textContent='暂时无法连接';$('emptyText').textContent='请确认本地游戏服务正在运行。'}
+      if(!snapshot&&!expired){$('emptyTitle').textContent='暂时无法连接';$('emptyText').textContent='服务恢复后会自动重试。'}
     }finally{pending=false;$('refresh').disabled=expired}
   }
   $('search').addEventListener('input',render);$('refresh').addEventListener('click',refresh);
   $('logout').addEventListener('click',async()=>{
     $('logout').disabled=true;
-    try{const response=await fetch('/api/admin/logout',{method:'POST',signal:AbortSignal.timeout(5000)});if(!response.ok)throw new Error();location.replace('/')}
+    try{const response=await fetch('/api/admin/logout',{method:'POST',signal:AbortSignal.timeout(5000)});if(!response.ok)throw new Error();location.replace('https://chenfenghrf.github.io/holy-wing-trial/')}
     catch(_){$('logout').disabled=false;$('notice').hidden=false;$('notice').textContent='退出失败，请在服务恢复后重试。'}
   });
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
