@@ -1,0 +1,7 @@
+{
+  "name": "shenyin-trials-local",
+  "main": "dist/server/index.js",
+  "compatibility_date": "2026-09-01",
+  "d1_databases": [{"binding":"DB","database_name":"shenyin-local","database_id":"00000000-0000-0000-0000-000000000001"}],
+  "vars": {"ADMIN_TOKEN":"local-test-token-not-used-in-production-2026","SITE_ORIGIN":"http://127.0.0.1:8833"}
+}
