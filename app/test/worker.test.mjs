@@ -141,7 +141,7 @@ test('edge location is stored masked, updates with the connection and is visible
   r.headers.set('X-Forwarded-For','8.8.8.8');r.headers.set('CF-Connecting-IPv6','2001:db8:ffff::1234');
   const posted=await handle(r,env,start);assert.deepEqual(await posted.json(),{ok:true,admin:false});
   const snapshot=await (await handle(req('/api/admin/online',owner),env,start)).json();
-  assert.deepEqual(snapshot.players[0].location,{ip_masked:'203.0.113.*',country_code:'CN',region:'Guangdong',city:'Shenzhen',network:'Example Network',source:'cloudflare'});
+  assert.deepEqual(snapshot.players[0].location,{ip_masked:'203.0.113.*',country_code:'CN',region:'Guangdong',city:'Shenzhen',network:'Example Network',source:'cloudflare',network_group:1,shared_exit_visitors:1});
   assert.equal((await handle(req('/api/admin/online',guest),env,start)).status,403);
   assert.ok(!JSON.stringify(sqlite.prepare('SELECT * FROM presence').all()).includes('203.0.113.25'));
   assert.equal((await handle(req('/api/presence/heartbeat',guest,payload({city:'fake'})),env,start)).status,400);
@@ -161,4 +161,26 @@ test('local, missing, invalid and cross-zone proxy addresses never fabricate geo
   }
   const countryOnly=withNetwork(req('/'),'203.0.113.25');countryOnly.headers.set('CF-IPCountry','JP');
   assert.deepEqual(clientLocation(countryOnly,env),{ip_masked:'203.0.113.*',country_code:'JP',region:'',city:'',network:'',source:'country-only'});
+});
+test('GitHub origin is identified and exact exits group visitors, not tabs or masked prefixes',async()=>{
+  const {env,sqlite}=create(),owner=await login(env),a=await setup(env),b=await setup(env);
+  const remote=await (await handle(remoteReq('/api/session'),env,start)).json();
+  const beat=(request,ip)=>handle(withNetwork(request,ip,{country:'US'}),env,start);
+  await beat(req('/api/presence/heartbeat',a,payload({name:'站点甲'})),'203.0.113.25');
+  await beat(req('/api/presence/heartbeat',a,payload({name:'站点甲',session:'c'.repeat(32)})),'203.0.113.25');
+  await beat(remoteReq('/api/presence/heartbeat',remote.player_token,payload({name:'GitHub乙'})),'203.0.113.25');
+  await beat(req('/api/presence/heartbeat',b,payload({name:'站点丙'})),'203.0.113.26');
+  const state=await (await handle(req('/api/admin/online',owner),env,start)).json();
+  const first=state.players.find(p=>p.name==='站点甲'),second=state.players.find(p=>p.name==='GitHub乙'),third=state.players.find(p=>p.name==='站点丙');
+  assert.equal(first.tabs,2);assert.deepEqual(first.entrypoints,['site']);assert.deepEqual(second.entrypoints,['github']);
+  assert.equal(first.location.network_group,second.location.network_group);assert.equal(first.location.shared_exit_visitors,2);
+  assert.equal(first.location.ip_masked,third.location.ip_masked);assert.notEqual(first.location.network_group,third.location.network_group);assert.equal(third.location.shared_exit_visitors,1);
+  assert.ok(!JSON.stringify(state).includes('exitKey'));
+  const rows=sqlite.prepare('SELECT * FROM presence').all();assert.match(rows[0].exit_key,/^[a-f0-9]{64}$/);
+  assert.ok(!JSON.stringify(rows).includes('203.0.113.25'));
+  // Anonymous identity and geography are not accepted as client claims.
+  assert.equal((await beat(remoteReq('/api/presence/heartbeat',remote.player_token,payload({entrypoint:'site'})),'203.0.113.25')).status,400);
+  await handle(remoteReq('/api/presence/leave',remote.player_token,{visitor:'a'.repeat(32),session:'b'.repeat(32)}),env,start);
+  const after=await (await handle(req('/api/admin/online',owner),env,start)).json();
+  assert.equal(after.players.find(p=>p.name==='站点甲').location.shared_exit_visitors,1);
 });

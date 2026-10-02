@@ -28,6 +28,8 @@
   const duration=s=>s<60?`${s} 秒`:`${Math.floor(s/60)} 分${s%60?` ${s%60} 秒`:''}`;
   let countryNames;try{countryNames=new Intl.DisplayNames(['zh-CN'],{type:'region'})}catch(_){}
   const countryName=code=>{if(!/^[A-Z]{2}$/.test(code||''))return '';try{return countryNames?.of(code)||code}catch(_){return code}};
+  const entryNames={github:'GitHub 游戏',site:'站点游戏',local:'本地游戏',unknown:'入口待确认'};
+  const entryLabel=p=>(p.entrypoints||['unknown']).map(v=>entryNames[v]||entryNames.unknown).join(' / ');
   function locationLabel(location={}){
     const parts=[countryName(location.country_code),location.region,location.city].filter(Boolean);
     if(parts.length)return [...new Set(parts)].join(' · ');
@@ -38,13 +40,16 @@
     for(const p of players){const loc=p.location||{},label=[countryName(loc.country_code),loc.region].filter(Boolean).join(' · ')||locationLabel(loc);groups.set(label,(groups.get(label)||0)+1)}
     const sorted=[...groups].sort((a,b)=>b[1]-a[1]),shown=sorted.slice(0,6).map(([name,count])=>`${name} ${count}`);
     if(sorted.length>6)shown.push(`其他地区 ${sorted.slice(6).reduce((sum,item)=>sum+item[1],0)}`);
-    $('regionSummary').textContent=players.length?'在线访客地区分布：'+shown.join('　/　'):'访客上线后，将显示 IP 归属地分布。';
+    const entries=new Map();for(const p of players)for(const source of p.entrypoints||['unknown'])entries.set(source,(entries.get(source)||0)+1);
+    const sources=[...entries].map(([source,count])=>`${entryNames[source]||entryNames.unknown} ${count}`).join(' / ');
+    const exitCount=new Set(players.map(p=>p.location?.network_group).filter(Boolean)).size;
+    $('regionSummary').textContent=players.length?`请求入口：${sources}。网络出口归属：${shown.join(' / ')}。已识别 ${exitCount} 个出口，多条访客记录可能来自同一个人。`:'访客上线后，将显示请求入口和网络出口归属。';
   }
   const cell=(row,label,text,cls)=>{const td=document.createElement('td');td.dataset.label=label;if(cls)td.className=cls;if(text!==undefined)td.textContent=text;row.append(td);return td};
   function render(){
     if(!snapshot)return;
     const all=snapshot.players,needle=$('search').value.trim().toLocaleLowerCase();
-    const players=all.filter(p=>`${p.name} ${p.character} ${locationLabel(p.location)} ${p.location?.ip_masked||''} ${p.location?.network||''}`.toLocaleLowerCase().includes(needle));
+    const players=all.filter(p=>`${p.name} ${p.character} ${entryLabel(p)} ${locationLabel(p.location)} ${p.location?.ip_masked||''} ${p.location?.network||''}`.toLocaleLowerCase().includes(needle));
     renderRegions(all);
     $('onlineCount').textContent=snapshot.online;$('playingCount').textContent=snapshot.playing;$('pausedCount').textContent=snapshot.paused;
     $('selectCount').textContent=all.filter(p=>p.mode==='select').length;
@@ -56,12 +61,14 @@
       const avatar=document.createElement('span');avatar.className=`avatar ${p.hero}`;avatar.textContent=p.hero==='long'?'✧':'☾';avatar.setAttribute('aria-hidden','true');
       const name=document.createElement('div');name.className='name';name.textContent=p.name;
       if(p.tabs>1){const sub=document.createElement('span');sub.className='sub';sub.textContent=`${p.tabs} 个游戏标签页`;name.append(sub)}
+      const entry=document.createElement('span');entry.className='sub';entry.textContent=entryLabel(p);name.append(entry);
       identity.append(avatar,name);
       const character=cell(row,'人物',(p.mode==='select'?'预选 · ':'')+p.character,'character');
       const scene=document.createElement('span');scene.className='sub';scene.textContent=p.mode==='select'?'尚未开始试炼':p.hero==='long'?'晨光圣殿':'月夜城塔';character.append(scene);
-      const loc=p.location||{},geography=cell(row,'IP 归属地',locationLabel(loc),'location');
+      const loc=p.location||{},geography=cell(row,'网络出口归属',locationLabel(loc),'location');
       if(loc.ip_masked){const ip=document.createElement('span');ip.className='sub ip';ip.textContent='IP '+loc.ip_masked+'（脱敏）';geography.append(ip)}
       if(loc.network){const network=document.createElement('span');network.className='sub';network.textContent=loc.network;geography.append(network)}
+      if(loc.network_group){const group=document.createElement('span');group.className='sub';group.textContent=`出口 ${loc.network_group} · ${loc.shared_exit_visitors} 条访客记录`;geography.append(group)}
       const status=document.createElement('span');status.className=`status ${p.mode}`;status.textContent=modes[p.mode]||'在线';cell(row,'状态').append(status);
       cell(row,'分数',String(p.score));cell(row,'时长',duration(p.online_seconds));
       const seconds=Math.max(0,Math.floor(snapshot.updated_at-p.last_seen));cell(row,'报到',seconds<3?'刚刚':`${seconds} 秒前`);

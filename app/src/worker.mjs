@@ -53,6 +53,14 @@ export function clientLocation(request,env){
   // Only Cloudflare ingress metadata is used; ignore X-Forwarded-For and client-supplied payload fields.
   return {ip_masked:maskIP(ip),country_code:country,region:locationText(cf.region),city:locationText(cf.city),network:locationText(cf.asOrganization),source:cf.country?'cloudflare':country?'country-only':'ip-only'};
 }
+async function connectionInfo(request,env,now,location){
+  const origin=request.headers.get('Origin');
+  const entrypoint=origin===FRONTEND_ORIGIN?'github':origin===env.SITE_ORIGIN?(env.SITE_ORIGIN.startsWith('https:')?'site':'local'):'unknown';
+  // Compare exact addresses using a daily, secret-keyed identifier. Never store the raw IP
+  // or equate different addresses just because their masked prefixes look the same.
+  const ip=location.ip_masked?validIP(request.headers.get('CF-Connecting-IP')):'';
+  return {entrypoint,exitKey:ip?await signature(env.ADMIN_TOKEN,`network|${Math.floor(now/86400)}|${ip}`):''};
+}
 // D1 is shared across all Worker instances; presence and sessions cannot live in isolate memory.
 const statement=(env,sql,...values)=>env.DB.prepare(sql).bind(...values);
 async function admin(request,env,now){
@@ -91,9 +99,12 @@ async function online(env,now){
   const players=[];
   for(const sessions of groups.values()){
     const latest=sessions.find(p=>p.mode!=='away')||sessions[0];
-    players.push({name:latest.name,hero:latest.hero,character:heroNames[latest.hero],mode:latest.mode,score:latest.score,tabs:sessions.length,online_seconds:Math.max(0,now-Math.min(...sessions.map(p=>p.first_seen))),last_seen:Math.max(...sessions.map(p=>p.last_seen)),location:{ip_masked:latest.ip_masked,country_code:latest.country_code,region:latest.region,city:latest.city,network:latest.network,source:latest.location_source||'unavailable'}});
+    players.push({name:latest.name,hero:latest.hero,character:heroNames[latest.hero],mode:latest.mode,score:latest.score,tabs:sessions.length,online_seconds:Math.max(0,now-Math.min(...sessions.map(p=>p.first_seen))),last_seen:Math.max(...sessions.map(p=>p.last_seen)),entrypoints:[...new Set(sessions.map(p=>p.entrypoint||'unknown'))].sort(),exitKey:latest.exit_key,location:{ip_masked:latest.ip_masked,country_code:latest.country_code,region:latest.region,city:latest.city,network:latest.network,source:latest.location_source||'unavailable'}});
   }
   players.sort((a,b)=>b.last_seen-a.last_seen);
+  const exits=new Map();
+  for(const p of players)if(p.exitKey){if(!exits.has(p.exitKey))exits.set(p.exitKey,{id:exits.size+1,count:0});exits.get(p.exitKey).count++}
+  for(const p of players){const exit=exits.get(p.exitKey);p.location.network_group=exit?.id||null;p.location.shared_exit_visitors=exit?.count||0;delete p.exitKey}
   return {players,online:players.length,playing:players.filter(p=>p.mode==='playing').length,paused:players.filter(p=>p.mode==='paused').length,updated_at:now,offline_after_seconds:TTL};
 }
 async function readPayload(request){
@@ -129,10 +140,11 @@ async function presence(request,env,path,now){
     const previous=await statement(env,'SELECT last_seen FROM presence WHERE visitor = ? AND session = ?',visitor,p.session.toLowerCase()).first();
     if(!previous&&count.total>=1000)return reply({error:'在线连接较多，请稍后重试'},429);
     const location=clientLocation(request,env);
+    const connection=await connectionInfo(request,env,now,location);
     await env.DB.batch([
       statement(env,'DELETE FROM presence WHERE last_seen <= ?',now-TTL),
-      statement(env,`INSERT INTO presence (visitor,session,name,hero,mode,score,first_seen,last_seen,ip_masked,country_code,region,city,network,location_source) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-        ON CONFLICT(visitor,session) DO UPDATE SET name=excluded.name,hero=excluded.hero,mode=excluded.mode,score=excluded.score,last_seen=excluded.last_seen,ip_masked=excluded.ip_masked,country_code=excluded.country_code,region=excluded.region,city=excluded.city,network=excluded.network,location_source=excluded.location_source`,visitor,p.session.toLowerCase(),p.name.trim()||`访客 · ${visitor.slice(-4).toUpperCase()}`,p.hero,p.mode,p.score,now,now,location.ip_masked,location.country_code,location.region,location.city,location.network,location.source),
+      statement(env,`INSERT INTO presence (visitor,session,name,hero,mode,score,first_seen,last_seen,ip_masked,country_code,region,city,network,location_source,entrypoint,exit_key) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ON CONFLICT(visitor,session) DO UPDATE SET name=excluded.name,hero=excluded.hero,mode=excluded.mode,score=excluded.score,last_seen=excluded.last_seen,ip_masked=excluded.ip_masked,country_code=excluded.country_code,region=excluded.region,city=excluded.city,network=excluded.network,location_source=excluded.location_source,entrypoint=excluded.entrypoint,exit_key=excluded.exit_key`,visitor,p.session.toLowerCase(),p.name.trim()||`访客 · ${visitor.slice(-4).toUpperCase()}`,p.hero,p.mode,p.score,now,now,location.ip_masked,location.country_code,location.region,location.city,location.network,location.source,connection.entrypoint,connection.exitKey),
     ]);
   }
   return reply({ok:true,admin:await admin(request,env,now)});

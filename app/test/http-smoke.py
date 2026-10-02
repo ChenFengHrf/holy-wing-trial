@@ -55,10 +55,13 @@ try:
     assert status==200 and headers.get('Access-Control-Allow-Origin')==github
     status,body,_=request(owner,'/api/admin/online')
     assert status==200 and any(x['name']==remote_player['name'] for x in json.loads(body)['players'])
-    location=next(x['location'] for x in json.loads(body)['players'] if x['name']==remote_player['name'])
+    github_row=next(x for x in json.loads(body)['players'] if x['name']==remote_player['name'])
+    assert github_row['entrypoints']==['github']
+    location=github_row['location']
     if base.startswith('https:'):
         assert location['ip_masked'].endswith('*'), 'Hosted request did not supply a masked visitor IP'
         assert location['country_code'] and location['source'] in ['cloudflare','country-only'], 'Hosted visitor country unavailable'
+        assert location['network_group'] and location['shared_exit_visitors']>=1
     else:
         assert location['source']=='local' and not location['country_code']
     assert request(remote,'/api/admin/online',headers=cross)[0]==403

@@ -90,3 +90,11 @@ test('admin shows geography, masked IP and regional totals, supports region sear
   app.el('search').value='日本';app.el('search').listeners.input();assert.match(app.el('players').textContent,/乙/);assert.ok(!app.el('players').textContent.includes('甲'));
   app.reply=()=>json({error:'需要管理员权限'},403);await app.advance(3000);assert.equal(app.el('regionSummary').textContent,'');assert.equal(app.el('players').textContent,'');
 });
+test('entry labels and shared network exits clarify repeated visitors and support GitHub search',async()=>{
+  const first=person({name:'甲',entrypoints:['github'],location:{country_code:'US',network_group:1,shared_exit_visitors:2}});
+  const second=person({name:'乙',entrypoints:['site'],location:{country_code:'US',network_group:1,shared_exit_visitors:2}});
+  const app=await browser(()=>json(data([first,second])));
+  assert.match(app.el('regionSummary').textContent,/GitHub 游戏 1/);assert.match(app.el('regionSummary').textContent,/站点游戏 1/);
+  assert.match(app.el('regionSummary').textContent,/已识别 1 个出口/);assert.match(app.el('players').textContent,/出口 1 · 2 条访客记录/);
+  app.el('search').value='github';app.el('search').listeners.input();assert.match(app.el('players').textContent,/甲/);assert.ok(!app.el('players').textContent.includes('乙'));
+});
